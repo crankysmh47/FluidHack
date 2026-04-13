@@ -15,7 +15,7 @@ export const Dashboard: React.FC = () => {
   }, [initSimulation]);
 
   return (
-    <div className="relative w-screen h-screen bg-background bg-grid-pattern overflow-hidden text-white font-sans">
+    <div className="relative w-screen h-screen bg-transparent overflow-hidden text-white font-sans scanline-effect">
       
       {/* 🔝 TOP EDGE - Execution Engine */}
       <div className="absolute top-0 left-0 w-full h-[100px] z-30 bg-black/40 backdrop-blur-xl border-b border-neon-green/20 shadow-[0_4px_30px_rgba(0,255,204,0.05)]">
