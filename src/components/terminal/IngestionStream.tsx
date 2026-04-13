@@ -15,11 +15,11 @@ export const IngestionStream: React.FC = () => {
   }, [logs]);
 
   return (
-    <div className="h-full flex flex-col font-mono p-6 relative overflow-hidden">
-      <div className="flex items-center justify-between mb-4 border-b border-white/5 pb-4">
+    <div className="h-full flex flex-col font-mono p-6 relative overflow-hidden bg-[#030805]/90">
+      <div className="flex items-center justify-between mb-4 border-b border-emerald-900/20 pb-4">
         <div className="flex items-center gap-2">
-          <Terminal className="text-cyan w-4 h-4" />
-          <h2 className="text-cyan font-bold tracking-[0.3em] uppercase text-xs">{'>'} Ingestion Stream</h2>
+          <Terminal className="text-emerald-400 w-4 h-4" />
+          <h2 className="text-emerald-400 font-bold tracking-[0.3em] uppercase text-xs">{'>'} Ingestion Stream</h2>
         </div>
       </div>
 
@@ -34,8 +34,8 @@ export const IngestionStream: React.FC = () => {
             onClick={() => setFilter(id as any)}
             className={`flex items-center gap-2 px-3 py-1.5 rounded-md border text-[9px] uppercase tracking-widest transition-all ${
               filter === id 
-                ? 'bg-cyan/10 border-cyan text-cyan' 
-                : 'bg-white/5 border-white/5 text-gray-500 hover:border-white/10'
+                ? 'bg-emerald-500/10 border-emerald-500 text-emerald-400' 
+                : 'bg-white/5 border-white/5 text-emerald-900/40 hover:border-emerald-900/60'
             }`}
           >
             <Icon className="w-3 h-3" />
@@ -47,16 +47,16 @@ export const IngestionStream: React.FC = () => {
       <div 
         ref={scrollRef}
         className="flex-grow overflow-y-auto space-y-2 pr-2 custom-scrollbar relative"
-        style={{ maskImage: 'linear-gradient(to bottom, transparent, black 5%, black 95%, transparent)', WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 5%, black 95%, transparent)' }}
+        style={{ maskImage: 'linear-gradient(to bottom, transparent, black 10%, black 90%, transparent)', WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 10%, black 90%, transparent)' }}
       >
         <AnimatePresence initial={false}>
           {logs.map((log) => {
             let statusTag = "[INFO]";
-            let colorClass = "text-blue-400";
+            let colorClass = "text-emerald-900/60";
             
-            if (log.level === 'success') { statusTag = "[OK]"; colorClass = "text-teal drop-shadow-[0_0_8px_rgba(0,255,204,0.4)]"; }
-            if (log.message.includes("Verifying") || log.message.includes("Check")) { statusTag = "[MONITORING]"; colorClass = "text-purple drop-shadow-[0_0_8px_rgba(176,38,255,0.4)]"; }
-            if (log.level === 'warning') { statusTag = "[ALERT]"; colorClass = "text-neon-red drop-shadow-[0_0_8px_rgba(255,51,102,0.4)]"; }
+            if (log.level === 'success') { statusTag = "[OK]"; colorClass = "text-emerald-400 drop-shadow-[0_0_5px_rgba(16,185,129,0.3)]"; }
+            if (log.message.includes("Verifying") || log.message.includes("Check")) { statusTag = "[MONITORING]"; colorClass = "text-emerald-100/40"; }
+            if (log.level === 'warning') { statusTag = "[ALERT]"; colorClass = "text-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0.4)]"; }
 
             return (
               <motion.div
@@ -65,7 +65,7 @@ export const IngestionStream: React.FC = () => {
                 animate={{ opacity: 1, x: 0 }}
                 className={`text-[10px] ${colorClass} flex gap-3 py-1 font-mono tracking-normal`}
               >
-                <span className="text-gray-600 shrink-0 opacity-50">[{log.timestamp}]</span>
+                <span className="text-emerald-900/30 shrink-0 opacity-50">[{log.timestamp}]</span>
                 <span className="shrink-0 font-bold">{statusTag}</span>
                 <span className="leading-relaxed break-words">{log.message}</span>
               </motion.div>
@@ -76,7 +76,7 @@ export const IngestionStream: React.FC = () => {
         <motion.div 
           animate={{ opacity: [1, 0] }} 
           transition={{ repeat: Infinity, duration: 0.8 }}
-          className="w-1.5 h-3 bg-cyan mt-2"
+          className="w-1.5 h-3 bg-emerald-500 mt-2"
         />
       </div>
     </div>

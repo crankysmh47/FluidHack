@@ -15,7 +15,7 @@ export const Dashboard: React.FC = () => {
   }, [initSimulation]);
 
   return (
-    <div className="relative w-screen h-screen overflow-hidden scanline-effect">
+    <div className="relative w-screen h-screen overflow-hidden bg-[#050A08] bg-noise scanline-effect">
       
       {/* 🔝 ROW 1: Execution Pipeline */}
       <div className="absolute top-0 left-0 w-full h-[120px] z-40">
@@ -23,20 +23,20 @@ export const Dashboard: React.FC = () => {
       </div>
 
       {/* 🖼️ MAIN GRID: Sidebars + Chart */}
-      <main className="absolute top-[120px] left-0 right-0 bottom-[120px] flex z-10">
+      <main className="absolute top-[120px] left-0 right-0 bottom-[140px] flex z-10">
         
         {/* LEFT: Branding & Metrics */}
-        <div className="w-[320px] h-full border-r border-white/5 bg-black/20 backdrop-blur-md">
+        <div className="w-[320px] h-full border-r border-emerald-900/40 bg-[#0A1410]/80 backdrop-blur-md">
           <PerformanceMetrics />
         </div>
 
         {/* CENTER: Main HUD Visualization */}
-        <div className="flex-grow h-full bg-white/[0.02]">
+        <div className="flex-grow h-full bg-emerald-950/5">
           <AttributionChart />
         </div>
 
         {/* RIGHT: Ingestion Terminal */}
-        <div className="w-[380px] h-full border-l border-white/5 bg-black/20 backdrop-blur-md">
+        <div className="w-[420px] h-full border-l border-emerald-900/40 bg-[#0A1410]/80 backdrop-blur-md">
           <IngestionStream />
         </div>
 

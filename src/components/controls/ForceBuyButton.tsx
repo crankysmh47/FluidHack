@@ -15,8 +15,8 @@ export const ForceBuyButton: React.FC = () => {
       disabled={isExecuting}
       className={`relative group overflow-hidden px-14 py-5 rounded-xl font-black tracking-[0.2em] uppercase transition-all duration-500 flex items-center gap-4 ${
         isExecuting 
-          ? 'bg-gray-900/80 text-teal/40 cursor-not-allowed border border-teal/20' 
-          : 'bg-[#00ffcc] text-black border-2 border-white/30 shadow-[0_0_50px_rgba(0,255,204,0.6)] hover:shadow-[0_0_100px_rgba(0,255,204,1)]'
+          ? 'bg-emerald-900/40 text-emerald-500/40 cursor-not-allowed border border-emerald-500/20' 
+          : 'bg-gradient-to-r from-emerald-400 to-emerald-600 text-[#050A08] border-2 border-emerald-300/50 shadow-[0_0_60px_rgba(16,185,129,0.5)] hover:shadow-[0_0_100px_rgba(16,185,129,0.8)]'
       }`}
     >
       <div className="relative z-10 flex items-center gap-4">
@@ -30,9 +30,9 @@ export const ForceBuyButton: React.FC = () => {
         </span>
       </div>
       
-      {/* High-Intensity Shine */}
+      {/* High-Intensity Tactical Shine */}
       {!isExecuting && (
-        <div className="absolute top-0 -inset-full h-full w-1/2 z-0 block transform -skew-x-12 bg-gradient-to-r from-transparent via-white to-transparent opacity-60 group-hover:animate-shine" />
+        <div className="absolute top-0 -inset-full h-full w-1/2 z-0 block transform -skew-x-12 bg-gradient-to-r from-transparent via-emerald-100/40 to-transparent opacity-60 group-hover:animate-shine" />
       )}
     </motion.button>
   );

@@ -30,10 +30,10 @@ export const TransactionFlow: React.FC = () => {
   const isExecuting = useCarbonStore(state => state.isExecuting);
 
   return (
-    <div className="w-full h-full flex items-center px-12 relative overflow-hidden bg-black/60 backdrop-blur-xl border-b border-white/5">
+    <div className="w-full h-full flex items-center px-12 relative overflow-hidden bg-[#0A1410]/90 backdrop-blur-xl border-b border-emerald-900/40">
       {/* Background execution pulse */}
       {isExecuting && (
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-teal/10 to-transparent animate-pulse pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-emerald-500/10 to-transparent animate-pulse pointer-events-none" />
       )}
 
       <div className="flex items-center justify-between w-full max-w-7xl mx-auto z-10">
@@ -47,33 +47,33 @@ export const TransactionFlow: React.FC = () => {
               {/* Node Item */}
               <div className="flex items-center gap-4 relative shrink-0">
                 <div className={`relative z-10 flex items-center justify-center w-12 h-12 rounded-full border transition-all duration-500 ${
-                  isPast ? 'bg-teal border-teal shadow-[0_0_20px_rgba(0,255,204,0.8)]' 
-                  : isActive ? 'bg-teal/20 border-teal shadow-[0_0_30px_rgba(0,255,204,0.6)]' 
+                  isPast ? 'bg-emerald-800/10 border-emerald-700 shadow-[0_0_10px_rgba(16,185,129,0.2)]' 
+                  : isActive ? 'bg-emerald-500/20 border-emerald-400 shadow-[0_0_30px_rgba(16,185,129,0.6)]' 
                   : 'bg-white/5 border-white/10'
                 }`}>
                   <Icon className={`w-5 h-5 transition-colors duration-300 ${
-                    isPast ? 'text-black' : isActive ? 'text-teal' : 'text-gray-600'
+                    isPast ? 'text-emerald-700' : isActive ? 'text-emerald-400' : 'text-emerald-900/40'
                   }`} />
                   
                   {isPast && (
                     <motion.div 
                       initial={{ scale: 0 }} 
                       animate={{ scale: 1 }}
-                      className="absolute -top-1 -right-1 bg-white rounded-full p-0.5"
+                      className="absolute -top-1 -right-1 bg-emerald-900 rounded-full p-0.5 border border-emerald-500"
                     >
-                      <div className="w-2.5 h-2.5 bg-teal rounded-full" />
+                      <div className="w-2.5 h-2.5 bg-emerald-400 rounded-full" />
                     </motion.div>
                   )}
                 </div>
 
                 <div className="flex flex-col">
                   <span className={`font-mono text-[9px] uppercase tracking-[0.2em] transition-colors duration-300 ${
-                    isPast || isActive ? 'text-white' : 'text-gray-600'
+                    isPast ? 'text-emerald-700/60' : isActive ? 'text-emerald-400' : 'text-emerald-900/40'
                   }`}>
                     Step 0{index + 1}
                   </span>
                   <span className={`font-mono text-[10px] font-bold tracking-widest whitespace-nowrap transition-colors duration-300 ${
-                    isPast ? 'text-teal' : isActive ? 'text-white' : 'text-gray-700'
+                    isPast ? 'text-emerald-700' : isActive ? 'text-white drop-shadow-[0_0_8px_rgba(16,185,129,0.8)]' : 'text-emerald-900/40'
                   }`}>
                     {node}
                   </span>
@@ -84,7 +84,7 @@ export const TransactionFlow: React.FC = () => {
               {index !== NODES.length - 1 && (
                 <div className="flex-1 mx-6 relative flex items-center">
                   <div className={`w-full h-[1px] transition-colors duration-500 rounded-full ${
-                    isPast ? 'bg-teal shadow-[0_0_10px_rgba(0,255,204,0.5)]' : 'bg-gray-800'
+                    isPast ? 'bg-emerald-700 shadow-[0_0_5px_rgba(16,185,129,0.2)]' : 'bg-emerald-900/20'
                   }`} />
                 </div>
               )}
