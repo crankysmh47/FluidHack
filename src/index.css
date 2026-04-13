@@ -6,7 +6,7 @@
 
 @layer base {
   body {
-    @apply bg-dark-900 text-white font-sans antialiased overflow-x-hidden;
+    @apply bg-background text-white font-sans antialiased overflow-x-hidden;
   }
 }
 
@@ -38,4 +38,37 @@
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #333;
+}
+
+/* Shine animation */
+@keyframes shine {
+  100% {
+    left: 200%;
+  }
+}
+.animate-shine {
+  animation: shine 1.5s infinite;
+}
+
+/* Custom Scrollbar for Terminal */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2); 
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1); 
+  border-radius: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 204, 255, 0.5); 
+}
+
+/* Grid background pattern */
+.bg-grid-pattern {
+  background-image: 
+    linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
 }

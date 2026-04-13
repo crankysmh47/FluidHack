@@ -1,71 +1,64 @@
-import React from 'react';
-import { DashboardLayout } from '../components/layout/DashboardLayout';
-import { GaugeContainer } from '../components/gauges/GaugeContainer';
-import { StockChart } from '../components/charts/StockChart';
-import { AIAvatar } from '../components/avatar/AIAvatar';
-import { AIPanel } from '../components/AIPanel';
-import { useDataSimulation } from '../hooks/useDataSimulation';
-import { BrainCircuit } from 'lucide-react';
+// src/pages/Dashboard.tsx
+import React, { useEffect } from 'react';
+import { useCarbonStore } from '../store/useCarbonStore';
+import { AITerminal } from '../components/terminal/AITerminal';
+import { AttributionChart } from '../components/charts/AttributionChart';
+import { TransactionFlow } from '../components/flow/TransactionFlow';
+import { ForceBuyButton } from '../components/controls/ForceBuyButton';
+import { ShieldAlert } from 'lucide-react';
 
-export function Dashboard() {
-  // Initialize data simulation hook
-  useDataSimulation();
+export const Dashboard: React.FC = () => {
+  const initSimulation = useCarbonStore(state => state.initSimulation);
+
+  useEffect(() => {
+    initSimulation();
+  }, [initSimulation]);
 
   return (
-    <DashboardLayout>
+    <div className="min-h-screen bg-background bg-grid-pattern p-4 md:p-8 flex flex-col gap-6">
+      
       {/* Header */}
-      <header className="flex justify-between items-center py-2 px-1">
+      <header className="flex items-center justify-between border-b border-white/5 pb-4">
         <div className="flex items-center gap-3">
-          <BrainCircuit className="w-8 h-8 text-cyan-400" />
-          <div>
-            <h1 className="text-2xl font-bold tracking-widest text-white uppercase">Nexus<span className="text-cyan-400">Trade</span></h1>
-            <p className="text-xs text-gray-500 font-mono tracking-widest">Autonomous Global Markets AI</p>
-          </div>
+          <ShieldAlert className="text-white w-8 h-8" />
+          <h1 className="text-3xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-white via-gray-300 to-gray-500 uppercase">
+            Carbon <span className="text-neon-green">Sentinel</span>
+          </h1>
         </div>
-        
-        <div className="flex gap-4 font-mono text-sm">
-          <div className="glass-panel px-4 py-2 rounded-lg flex items-center gap-2">
-            <span className="flex h-2 w-2 relative">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <span className="relative flex h-3 w-3">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-neon-green opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-neon-green"></span>
             </span>
-            SYSTEM ONLINE
-          </div>
-          <div className="glass-panel px-4 py-2 rounded-lg text-gray-400">
-            LATENCY: <span className="text-white">12ms</span>
+            <span className="text-sm font-mono text-gray-400">NODE ACTIVE</span>
           </div>
         </div>
       </header>
 
-      {/* Top Section - Gauges */}
-      <section className="w-full">
-        <GaugeContainer />
+      {/* Main 3-Panel Layout */}
+      <section className="flex-grow grid grid-cols-1 lg:grid-cols-3 gap-6 h-[500px]">
+        {/* Left: Data Ingestion */}
+        <div className="lg:col-span-1 h-full">
+          <AITerminal />
+        </div>
+        
+        {/* Center: Logic / Attribution */}
+        <div className="lg:col-span-1 h-full">
+          <AttributionChart />
+        </div>
+
+        {/* Right: Execution Flow */}
+        <div className="lg:col-span-1 h-full">
+          <TransactionFlow />
+        </div>
       </section>
 
-      {/* Main Grid Setup */}
-      <div className="flex flex-1 gap-6 min-h-0">
-        
-        {/* Left Section - Main Chart */}
-        <section className="flex-[2] flex flex-col min-w-0">
-          <StockChart />
-        </section>
+      {/* Action Area */}
+      <section className="mt-auto">
+        <ForceBuyButton />
+      </section>
 
-        {/* Right Section - AI Avatar & Panel */}
-        <section className="flex-1 flex flex-col gap-6 min-w-[350px] max-w-[450px]">
-          {/* Avatar takes top portion of right column */}
-          <div className="glass-panel rounded-2xl overflow-hidden shadow-2xl relative">
-            <div className="absolute top-4 left-4 z-10 flex gap-2">
-              <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-              <div className="text-[10px] font-mono text-white/50 tracking-widest">REC</div>
-            </div>
-            <AIAvatar />
-          </div>
-
-          {/* AI Panel takes remaining space */}
-          <AIPanel />
-        </section>
-
-      </div>
-    </DashboardLayout>
+    </div>
   );
-}
+};
