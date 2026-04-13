@@ -1,81 +1,99 @@
 // src/components/charts/AttributionChart.tsx
 import React, { useMemo } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { useCarbonStore } from '../../store/useCarbonStore';
 import { motion } from 'framer-motion';
 
 export const AttributionChart: React.FC = () => {
-  const { ambientBase, stadiumBase, simulationFactor, setSimulationFactor } = useCarbonStore();
+  const { ambientBase, stadiumBase, simulationFactor } = useCarbonStore();
 
   const data = useMemo(() => {
-    return [{
-      name: 'Real-Time Emission Vectors',
-      ambient: Math.round(ambientBase * simulationFactor),
-      stadium: Math.round(stadiumBase + (simulationFactor * 5)), 
-    }];
+    // Generate some historical-looking points for the Area chart
+    const points = [];
+    for (let i = 0; i < 7; i++) {
+      const variator = 1 + (Math.sin(i) * 0.1);
+      points.push({
+        time: `${i}:00`,
+        ambient: Math.round(ambientBase * simulationFactor * variator),
+        stadium: Math.round((stadiumBase + (simulationFactor * 5)) * (1 + (Math.cos(i) * 0.05))), 
+      });
+    }
+    return points;
   }, [ambientBase, stadiumBase, simulationFactor]);
 
   return (
     <motion.div 
-      className="h-full flex flex-col pb-[120px] relative"
-      animate={{ opacity: [0.97, 1, 0.97] }}
-      transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
+      className="h-full flex flex-col relative p-4"
+      animate={{ opacity: [0.98, 1, 0.98] }}
+      transition={{ repeat: Infinity, duration: 5, ease: "easeInOut" }}
     >
-      {/* Background Ambient Glow */}
-      <div className="absolute inset-0 bg-gradient-to-t from-neon-purple/5 to-transparent pointer-events-none rounded-2xl" />
-
-      <div className="flex-grow w-full min-h-[300px] relative z-10 drop-shadow-[0_10px_20px_rgba(0,0,0,0.5)]">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
-            <defs>
-              <linearGradient id="colorStadium" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#00ffcc" stopOpacity={0.9}/>
-                <stop offset="95%" stopColor="#00ffcc" stopOpacity={0.2}/>
-              </linearGradient>
-              <linearGradient id="colorAmbient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#b026ff" stopOpacity={0.9}/>
-                <stop offset="95%" stopColor="#b026ff" stopOpacity={0.2}/>
-              </linearGradient>
-              <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-                <feGaussianBlur stdDeviation="4" result="blur" />
-                <feMerge>
-                  <feMergeNode in="blur" />
-                  <feMergeNode in="SourceGraphic" />
-                </feMerge>
-              </filter>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-            <XAxis dataKey="name" stroke="#888" tickLine={false} axisLine={false} tick={{fill: '#888', fontSize: 12, fontFamily: 'monospace'}} />
-            <YAxis stroke="#888" tickLine={false} axisLine={false} tick={{fontFamily: 'monospace'}} />
-            <Tooltip 
-              cursor={{fill: 'rgba(255,255,255,0.03)'}}
-              contentStyle={{ backgroundColor: 'rgba(5,5,15,0.85)', backdropFilter: 'blur(12px)', border: '1px solid rgba(0,255,204,0.3)', borderRadius: '8px', boxShadow: '0 0 20px rgba(0,255,204,0.1)' }}
-              itemStyle={{ fontFamily: 'monospace' }}
-            />
-            <Bar dataKey="stadium" name="Stadium (Stable)" stackId="a" fill="url(#colorStadium)" radius={[0, 0, 4, 4]} filter="url(#glow)" animationDuration={1500} animationEasing="ease-out" />
-            <Bar dataKey="ambient" name="Ambient (Spiking)" stackId="a" fill="url(#colorAmbient)" radius={[4, 4, 0, 0]} filter="url(#glow)" animationDuration={1500} animationEasing="ease-out" />
-          </BarChart>
-        </ResponsiveContainer>
+      <div className="flex items-center justify-between mb-8 px-4">
+        <div>
+          <h2 className="text-[10px] font-bold tracking-[0.4em] uppercase text-gray-500 mb-1">Telemetry Analysis</h2>
+          <h1 className="text-2xl font-black text-white tracking-widest uppercase">Real-Time Emission Vectors</h1>
+        </div>
+        <div className="text-right">
+          <p className="text-[9px] text-gray-500 font-mono">SAMPLING RATE: 0.5s</p>
+          <p className="text-[9px] text-teal font-mono">ENCRYPTED STREAM</p>
+        </div>
       </div>
 
-      {/* Embedded Slider UI */}
-      <div className="mt-6 mx-auto w-full max-w-3xl bg-white/5 backdrop-blur-md p-6 rounded-2xl border border-white/10 shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
-        <label className="flex justify-between text-sm text-gray-300 mb-6 font-mono tracking-wide">
-          <span>NORMAL OPERATION</span>
-          <span className="text-neon-yellow drop-shadow-[0_0_8px_rgba(255,204,0,0.6)] animate-pulse">SIMULATE HEATWAVE / GRID SPIKE</span>
-        </label>
-        <input 
-          type="range" 
-          min="1" 
-          max="5" 
-          step="0.1"
-          value={simulationFactor}
-          onChange={(e) => setSimulationFactor(parseFloat(e.target.value))}
-          className="w-full h-3 bg-black/60 rounded-lg appearance-none cursor-pointer accent-neon-purple border border-white/10"
-        />
-        <div className="text-center mt-4 text-xs text-gray-500 uppercase tracking-[0.2em]">
-          Drag slider to visually prove attribution separation logic
-        </div>
+      <div className="flex-grow w-full h-[500px] relative z-10">
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart data={data} margin={{ top: 20, right: 30, left: 10, bottom: 0 }}>
+            <defs>
+              <linearGradient id="colorStadium" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#00ffcc" stopOpacity={0.6}/>
+                <stop offset="95%" stopColor="#00ffcc" stopOpacity={0.05}/>
+              </linearGradient>
+              <linearGradient id="colorAmbient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#b026ff" stopOpacity={0.6}/>
+                <stop offset="95%" stopColor="#b026ff" stopOpacity={0.05}/>
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="1 5" stroke="rgba(255,255,255,0.05)" vertical={false} />
+            <XAxis dataKey="time" hide />
+            <YAxis 
+              stroke="#444" 
+              tickLine={false} 
+              axisLine={false} 
+              tick={{fill: '#666', fontSize: 10, fontFamily: 'monospace'}}
+              ticks={[0, 200, 450, 600]}
+              tickFormatter={(val) => `${val} tCO2e`}
+            />
+            <Tooltip 
+              cursor={{ stroke: 'rgba(0, 255, 204, 0.2)', strokeWidth: 1 }}
+              contentStyle={{ backgroundColor: 'rgba(5,5,15,0.9)', backdropFilter: 'blur(10px)', border: '1px solid rgba(0,255,204,0.3)', borderRadius: '8px', boxShadow: '0 0 20px rgba(0,0,0,0.5)' }}
+              itemStyle={{ fontFamily: 'monospace', fontSize: '11px' }}
+            />
+            <Area 
+              type="monotone" 
+              dataKey="stadium" 
+              name="Stadium Footprint (Stable)" 
+              stackId="1" 
+              stroke="#00ffcc" 
+              fillOpacity={1} 
+              fill="url(#colorStadium)" 
+              strokeWidth={3}
+            />
+            <Area 
+              type="monotone" 
+              dataKey="ambient" 
+              name="Ambient City Footprint (Spiking)" 
+              stackId="1" 
+              stroke="#b026ff" 
+              fillOpacity={1} 
+              fill="url(#colorAmbient)" 
+              strokeWidth={3}
+            />
+            <Legend 
+              verticalAlign="top" 
+              align="right" 
+              iconType="circle"
+              wrapperStyle={{ paddingBottom: '20px', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', opacity: 0.8 }}
+            />
+          </AreaChart>
+        </ResponsiveContainer>
       </div>
     </motion.div>
   );

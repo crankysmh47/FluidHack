@@ -1,3 +1,4 @@
+// src/components/controls/ForceBuyButton.tsx
 import React from 'react';
 import { useCarbonStore } from '../../store/useCarbonStore';
 import { motion } from 'framer-motion';
@@ -12,29 +13,26 @@ export const ForceBuyButton: React.FC = () => {
       whileTap={{ scale: isExecuting ? 1 : 0.95 }}
       onClick={executeTransaction}
       disabled={isExecuting}
-      className={`relative group overflow-hidden px-16 py-6 rounded-full font-black tracking-[0.3em] uppercase transition-all duration-500 flex items-center gap-4 ${
+      className={`relative group overflow-hidden px-14 py-5 rounded-xl font-black tracking-[0.2em] uppercase transition-all duration-500 flex items-center gap-4 ${
         isExecuting 
-          ? 'bg-gray-900/80 backdrop-blur-xl text-neon-cyan/50 cursor-not-allowed border border-neon-cyan/20 shadow-[0_0_30px_rgba(0,204,255,0.1)]' 
-          : 'bg-gradient-to-r from-neon-green/20 to-neon-cyan/20 backdrop-blur-xl text-white border border-neon-cyan shadow-[0_0_40px_rgba(0,204,255,0.4)] hover:shadow-[0_0_80px_rgba(0,255,204,0.8)]'
+          ? 'bg-gray-900/80 text-teal/40 cursor-not-allowed border border-teal/20' 
+          : 'bg-[#00ffcc] text-black border-2 border-white/30 shadow-[0_0_50px_rgba(0,255,204,0.6)] hover:shadow-[0_0_100px_rgba(0,255,204,1)]'
       }`}
     >
-      {/* Dynamic Icon */}
-      {isExecuting ? (
-        <Loader2 className="w-6 h-6 animate-spin text-neon-cyan" />
-      ) : (
-        <Zap className="w-6 h-6 text-neon-green drop-shadow-[0_0_10px_rgba(0,255,204,1)]" />
-      )}
+      <div className="relative z-10 flex items-center gap-4">
+        {isExecuting ? (
+          <Loader2 className="w-6 h-6 animate-spin" />
+        ) : (
+          <Zap className="w-6 h-6 fill-current" strokeWidth={3} />
+        )}
+        <span className="text-sm font-black">
+          {isExecuting ? 'Executing Sequence...' : 'Force Offset Execution / Confirm and Execute'}
+        </span>
+      </div>
       
-      <span className={!isExecuting ? "drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]" : ""}>
-        {isExecuting ? 'Executing Sequence...' : 'Force Offset Execution'}
-      </span>
-      
-      {/* Radar/Ripple background effect */}
+      {/* High-Intensity Shine */}
       {!isExecuting && (
-        <>
-          <span className="absolute inset-0 rounded-full border border-neon-green/50 animate-ping opacity-20" />
-          <div className="absolute top-0 -inset-full h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent to-white opacity-20 group-hover:animate-shine" />
-        </>
+        <div className="absolute top-0 -inset-full h-full w-1/2 z-0 block transform -skew-x-12 bg-gradient-to-r from-transparent via-white to-transparent opacity-60 group-hover:animate-shine" />
       )}
     </motion.button>
   );

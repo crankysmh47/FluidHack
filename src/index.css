@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&family=JetBrains+Mono:wght@300;400;500;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,116 +6,97 @@
 
 @layer base {
   body {
-    @apply bg-background text-white font-sans antialiased overflow-x-hidden;
+    @apply bg-dark-900 text-white font-sans antialiased overflow-hidden select-none;
+    background: radial-gradient(circle at 50% 50%, #0a0a1a 0%, #020205 100%);
+    position: relative;
+    height: 100vh;
+    width: 100vw;
+  }
+
+  /* Faint World Map Pattern */
+  body::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 400'%3E%3Cpath fill='%23ffffff' fill-opacity='0.03' d='M150 100h20v20h-20zM300 150h40v30h-40zM500 80h50v40h-50zM100 250h30v20h-30zM600 280h40v30h-40z'/%3E%3C/svg%3E");
+    background-size: cover;
+    background-position: center;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.5;
+  }
+
+  /* HUD Grid Overlay */
+  #root::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: 
+      linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+    background-size: 50px 50px;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* CRT Scanline Overlay */
+  body::before {
+    content: " ";
+    display: block;
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), 
+                linear-gradient(90deg, rgba(0, 255, 204, 0.02), rgba(176, 38, 255, 0.01), rgba(0, 204, 255, 0.02));
+    z-index: 100;
+    background-size: 100% 3px, 5px 100%;
+    pointer-events: none;
   }
 }
 
 @layer utilities {
-  .glass-panel {
-    @apply bg-dark-800/60 backdrop-blur-md border border-white/10 shadow-[0_0_15px_rgba(0,0,0,0.5)];
+  .hud-panel {
+    @apply bg-black/40 backdrop-blur-xl border border-white/10 shadow-[0_0_15px_rgba(0,0,0,0.5)];
   }
   
-  .glow-text-green {
-    text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+  .text-glow-teal {
+    text-shadow: 0 0 10px rgba(0, 255, 204, 0.6);
   }
   
-  .glow-text-cyan {
-    text-shadow: 0 0 10px rgba(0, 204, 255, 0.5);
+  .text-glow-cyan {
+    text-shadow: 0 0 10px rgba(0, 204, 255, 0.6);
+  }
+
+  .text-glow-purple {
+    text-shadow: 0 0 10px rgba(176, 38, 255, 0.6);
+  }
+
+  .scanline-effect::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to bottom, transparent, rgba(0, 255, 204, 0.05), transparent);
+    animation: scanline 8s linear infinite;
+    pointer-events: none;
+    z-index: 50;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2); 
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.05); 
+    @apply rounded-full;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: theme('colors.teal.DEFAULT'); 
   }
 }
 
-/* Custom Scrollbar for dark theme */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-::-webkit-scrollbar-track {
-  background: #050505;
-}
-::-webkit-scrollbar-thumb {
-  background: #222;
-  border-radius: 4px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #333;
-}
-
-/* Shine animation */
 @keyframes shine {
   100% {
     left: 200%;
   }
-}
-.animate-shine {
-  animation: shine 1.5s infinite;
-}
-
-/* Custom Scrollbar for Terminal */
-.custom-scrollbar::-webkit-scrollbar {
-  width: 6px;
-}
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.2); 
-}
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1); 
-  border-radius: 10px;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 204, 255, 0.5); 
-}
-
-/* Grid background pattern */
-.bg-grid-pattern {
-  background-image: 
-    linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
-  background-size: 40px 40px;
-}
-
-/* Global Cinematic Background Glows */
-body {
-  background: radial-gradient(circle at 50% 50%, #0a0a1a 0%, #020205 100%);
-  position: relative;
-}
-
-/* CRT Scanline Overlay */
-body::before {
-  content: ' ';
-  display: block;
-  position: absolute;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  right: 0;
-  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
-  z-index: 50;
-  background-size: 100% 2px, 3px 100%;
-  pointer-events: none;
-}
-
-/* UI Scanline Animation */
-@keyframes scanline {
-  0% { transform: translateY(-100%); }
-  100% { transform: translateY(100vh); }
-}
-.scanline-effect::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(to bottom, transparent, rgba(0,255,204,0.1), transparent);
-  animation: scanline 8s linear infinite;
-  pointer-events: none;
-  z-index: 40;
-}
-
-@keyframes shine {
-  100% { left: 200%; }
-}
-.animate-shine {
-  animation: shine 2s infinite;
-}
-
-.text-shadow-glow {
-  text-shadow: 0 0 10px currentColor;
 }
