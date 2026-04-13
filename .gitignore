@@ -4,7 +4,7 @@
 /contracts/broadcast/
 
 # Dependencies (installed via forge install)
-/contracts/lib/
+#/contracts/lib/
 
 # Environment
 .env
