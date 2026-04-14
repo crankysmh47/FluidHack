@@ -44,13 +44,17 @@ export const DigitalWeather: React.FC = () => {
       }
     };
 
+    const velocityRef = useRef(1);
+
     const animate = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       
-      const velocityScale = 1 + (simulationFactor * 0.5) + (isExecuting ? 4 : 0);
+      // Interpolate velocity for absolute smoothness
+      const targetVelocity = 1 + (simulationFactor * 0.5) + (isExecuting ? 4 : 0);
+      velocityRef.current += (targetVelocity - velocityRef.current) * 0.05; // Smooth lerp
       
       particles.forEach(p => {
-        p.y -= p.speed * velocityScale;
+        p.y -= p.speed * velocityRef.current;
         p.x += Math.sin(p.y / 50) * 0.5; // Subtle drift
 
         if (p.y < -10) {
@@ -64,11 +68,12 @@ export const DigitalWeather: React.FC = () => {
         ctx.fill();
         
         // Draw trailing lines if executing (Streamers)
-        if (isExecuting) {
+        if (isExecuting || velocityRef.current > 2) {
           ctx.beginPath();
           ctx.moveTo(p.x, p.y);
-          ctx.lineTo(p.x, p.y + p.speed * 20);
-          ctx.strokeStyle = `rgba(16, 185, 129, ${p.opacity * 0.5})`;
+          ctx.lineTo(p.x, p.y + p.speed * (velocityRef.current * 4));
+          ctx.strokeStyle = `rgba(16, 185, 129, ${p.opacity * (velocityRef.current / 6)})`;
+          ctx.lineWidth = 1;
           ctx.stroke();
         }
       });
