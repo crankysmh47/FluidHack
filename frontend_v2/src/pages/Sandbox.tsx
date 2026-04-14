@@ -3,7 +3,7 @@ import { useCarbonStore } from '../store/useCarbonStore';
 import { useNavigate } from 'react-router-dom';
 
 const Sandbox: React.FC = () => {
-  const { user, forceBuy } = useCarbonStore();
+  const { user, forceBuy, uiMessage, setUiMessage } = useCarbonStore();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -11,7 +11,14 @@ const Sandbox: React.FC = () => {
   }, [user, navigate]);
 
   return (
-    <div className="bg-background text-on-background font-body selection:bg-primary-fixed min-h-screen">
+    <div className="bg-background text-on-background font-body selection:bg-primary-fixed min-h-screen pb-32">
+      {/* Toast Notification */}
+      {uiMessage && (
+        <div className={`fixed top-20 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded-full text-sm font-bold shadow-xl z-50 transition-all ${uiMessage.type === 'success' ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'}`}>
+          {uiMessage.text}
+        </div>
+      )}
+
       {/* TopAppBar */}
       <header className="fixed top-0 left-0 w-full z-50 bg-slate-50/70 backdrop-blur-xl flex justify-between items-center px-6 pt-4 pb-2">
         <div className="flex items-center gap-3">
@@ -58,8 +65,7 @@ const Sandbox: React.FC = () => {
             </div>
             <button 
               onClick={() => {
-                alert("Simulated Faucet: 10,000 USDC added to your environment balance.");
-                // In a real app, this would call a faucet contract/API
+                setUiMessage("Simulated Faucet: 10,000 USDC added to your environment balance.", "success");
               }}
               className="clinical-gradient w-full py-5 rounded-md text-on-primary font-headline font-bold text-lg hover:brightness-110 transition-all active:scale-95 duration-200"
             >
@@ -133,7 +139,10 @@ const Sandbox: React.FC = () => {
                   </div>
                 </div>
                 <button 
-                  onClick={() => forceBuy(5.0)}
+                  onClick={() => {
+                    forceBuy(5.0);
+                    setUiMessage("Test transaction sent. The AI agent will process it.", "success");
+                  }}
                   className="clinical-gradient w-full py-5 rounded-md text-on-primary font-headline font-bold text-lg hover:brightness-110 transition-all active:scale-95 duration-200 uppercase tracking-widest"
                 >
                   Fire Autonomous Test Transaction

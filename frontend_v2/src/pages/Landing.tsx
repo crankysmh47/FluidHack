@@ -8,8 +8,8 @@ const Landing: React.FC = () => {
   const { user, login, signup, isLoading, error } = useCarbonStore()
   
   const [authMode, setAuthMode] = useState<'none' | 'login' | 'signup'>('none');
-  const [email, setEmail] = useState('');
-  const [name, setName] = useState('');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
 
   useEffect(() => {
     if (user) {
@@ -22,9 +22,9 @@ const Landing: React.FC = () => {
     e.preventDefault();
     let success = false;
     if (authMode === 'login') {
-      success = await login(email);
+      success = await login(username, password);
     } else {
-      success = await signup(name, email);
+      success = await signup(username, password);
     }
     if (success) navigate('/dashboard');
   };
@@ -67,32 +67,31 @@ const Landing: React.FC = () => {
               {authMode === 'login' ? 'Welcome Back' : 'Create Sentinel Identity'}
             </h2>
             <p className="text-on-surface-variant text-sm mb-6">
-              {authMode === 'login' ? 'Enter your email to access your dashboard.' : 'Provision your initial carbon offset budget instantly.'}
+              {authMode === 'login' ? 'Enter your username to access your dashboard.' : 'Provision your initial carbon offset budget instantly.'}
             </p>
 
             <form onSubmit={handleAuth} className="flex flex-col gap-4">
-              {authMode === 'signup' && (
-                <div>
-                  <label className="text-xs font-bold uppercase tracking-widest text-primary mb-1 block">Full Name</label>
-                  <input 
-                    required 
-                    type="text" 
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="w-full bg-surface-container-low border border-outline/30 rounded-xl px-4 py-3 focus:outline-none focus:border-primary transition-colors"
-                    placeholder="Jane Doe"
-                  />
-                </div>
-              )}
               <div>
-                <label className="text-xs font-bold uppercase tracking-widest text-primary mb-1 block">Email Address</label>
+                <label className="text-xs font-bold uppercase tracking-widest text-primary mb-1 block">Username</label>
                 <input 
                   required 
-                  type="email" 
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  type="text" 
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
                   className="w-full bg-surface-container-low border border-outline/30 rounded-xl px-4 py-3 focus:outline-none focus:border-primary transition-colors"
-                  placeholder="name@example.com"
+                  placeholder="Enter a unique username"
+                />
+              </div>
+              
+              <div>
+                <label className="text-xs font-bold uppercase tracking-widest text-primary mb-1 block">Password</label>
+                <input 
+                  required 
+                  type="password" 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full bg-surface-container-low border border-outline/30 rounded-xl px-4 py-3 focus:outline-none focus:border-primary transition-colors"
+                  placeholder="Secure password"
                 />
               </div>
               

@@ -14,7 +14,6 @@ export interface SystemLog {
 export interface User {
   id: string;
   name: string;
-  email: string;
 }
 
 interface CarbonStore {
@@ -31,8 +30,8 @@ interface CarbonStore {
   isAgentActive: boolean;
   
   // Actions
-  login: (email: string) => Promise<boolean>;
-  signup: (name: string, email: string) => Promise<boolean>;
+  login: (username: string, pass: string) => Promise<boolean>;
+  signup: (username: string, pass: string) => Promise<boolean>;
   logout: () => void;
   fetchStats: () => Promise<void>;
   fetchLedger: () => Promise<void>;
@@ -42,6 +41,13 @@ interface CarbonStore {
   // UI State
   isLoading: boolean;
   error: string | null;
+  isDemoMode: boolean;
+  toggleDemoMode: () => void;
+  liveFeed: any;
+  fetchLiveFeed: () => Promise<void>;
+  uiMessage: { text: string; type: 'success' | 'error' } | null;
+  setUiMessage: (text: string, type: 'success' | 'error') => void;
+  clearUiMessage: () => void;
 }
 
 export const useCarbonStore = create<CarbonStore>()(
@@ -54,52 +60,61 @@ export const useCarbonStore = create<CarbonStore>()(
       isAgentActive: true,
       isLoading: false,
       error: null,
+      isDemoMode: false,
+      liveFeed: null,
+      toggleDemoMode: () => set((state) => ({ isDemoMode: !state.isDemoMode })),
 
-      login: async (email: string) => {
+      fetchLiveFeed: async () => {
+        try {
+          const res = await axios.get(`${API_BASE}/live-feed`);
+          if (res.data.ok) {
+            set({ liveFeed: res.data.data });
+          }
+        } catch (err) {
+          console.error("Live Feed Fetch Error:", err);
+        }
+      },
+      uiMessage: null,
+
+      setUiMessage: (text, type) => {
+        set({ uiMessage: { text, type } });
+        setTimeout(() => set({ uiMessage: null }), 4000);
+      },
+      clearUiMessage: () => set({ uiMessage: null }),
+
+      login: async (username: string, pass: string) => {
         set({ isLoading: true, error: null });
         try {
-          const userId = `usr_${btoa(email).replace(/=/g, '')}`;
-          const res = await axios.get(`${API_BASE}/user/${userId}/config`);
+          const res = await axios.post(`${API_BASE}/auth/login`, { username, password: pass });
           if (res.data.ok) {
-            set({ 
-              user: { 
-                id: userId, 
-                name: res.data.data.display_name || email.split('@')[0], 
-                email 
-              },
-              remainingBudget: res.data.data.budget_usd - res.data.data.spent_usd,
-              isAgentActive: res.data.data.is_active
-            });
+            set({ user: { id: username, name: username } });
             await get().fetchStats();
             return true;
           }
-          throw new Error("User not found");
-        } catch (err) {
-          set({ error: "Failed to login. Please check your email or sign up." });
+          throw new Error("Invalid credentials");
+        } catch (err: any) {
+          set({ error: err.response?.data?.error || "Failed to login. Please check your credentials." });
           return false;
         } finally {
           set({ isLoading: false });
         }
       },
 
-      signup: async (name: string, email: string) => {
+      signup: async (username: string, pass: string) => {
         set({ isLoading: true, error: null });
         try {
-          const userId = `usr_${btoa(email).replace(/=/g, '')}`;
-          // Init config on backend
-          await axios.post(`${API_BASE}/user/${userId}/config`, {
-            display_name: name,
-            budget_usd: 50.0 // Starting budget
-          });
-          
-          set({ 
-            user: { id: userId, name, email },
-            remainingBudget: 50.0,
-            isAgentActive: true
-          });
-          return true;
-        } catch (err) {
-          set({ error: "Failed to sign up." });
+          const res = await axios.post(`${API_BASE}/auth/signup`, { username, password: pass });
+          if (res.data.ok) {
+            set({ 
+              user: { id: username, name: username },
+              remainingBudget: 50.0,
+              isAgentActive: true
+            });
+            return true;
+          }
+          throw new Error("Failed to sign up");
+        } catch (err: any) {
+          set({ error: err.response?.data?.error || "Username already exists." });
           return false;
         } finally {
           set({ isLoading: false });
@@ -132,12 +147,17 @@ export const useCarbonStore = create<CarbonStore>()(
         try {
           const res = await axios.get(`${API_BASE}/ledger?per_page=10`);
           if (res.data.ok) {
-            const mappedLogs = res.data.data.records.map((r: any) => ({
-              id: r.tx_hash,
-              timestamp: new Date(r.timestamp).toLocaleTimeString(),
-              message: `Offset: ${r.footprint_kg}kg | ID: ${r.match_id}`,
-              level: 'success'
-            }));
+            const mappedLogs = res.data.data.records.map((r: any) => {
+              // Fix Python date parsing (ensure timezone handled)
+              const d = new Date(r.timestamp.endsWith('Z') || r.timestamp.includes('+') ? r.timestamp : r.timestamp + 'Z');
+              const timeString = isNaN(d.getTime()) ? 'Unknown Time' : d.toLocaleTimeString();
+              return {
+                id: r.tx_hash,
+                timestamp: timeString,
+                message: `Offset: ${r.footprint_kg}kg | ID: ${r.match_id}`,
+                level: 'success'
+              };
+            });
             set({ logs: mappedLogs });
           }
         } catch (err) {
@@ -153,9 +173,11 @@ export const useCarbonStore = create<CarbonStore>()(
           const res = await axios.post(`${API_BASE}/user/${user.id}/revoke`);
           if (res.data.ok) {
             set({ isAgentActive: false });
+            get().setUiMessage("AI Agent revoked successfully.", "success");
           }
         } catch (err) {
           set({ error: "Failed to revoke agent" });
+          get().setUiMessage("Failed to revoke agent.", "error");
         } finally {
           set({ isLoading: false });
         }
@@ -173,9 +195,11 @@ export const useCarbonStore = create<CarbonStore>()(
           if (res.data.ok) {
             await get().fetchStats();
             await get().fetchLedger();
+            get().setUiMessage(`Force buy of $${amount} successfully queued.`, "success");
           }
         } catch (err) {
           set({ error: "Force buy failed" });
+          get().setUiMessage("Force buy failed.", "error");
         } finally {
           set({ isLoading: false });
         }
@@ -183,7 +207,7 @@ export const useCarbonStore = create<CarbonStore>()(
     }),
     {
       name: 'carbon-storage',
-      partialize: (state) => ({ user: state.user }),
+      partialize: (state) => ({ user: state.user, isDemoMode: state.isDemoMode }),
     }
   )
 );
