@@ -1,7 +1,7 @@
 // src/components/flow/TransactionFlow.tsx
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useCarbonStore } from '../../store/useCarbonStore';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Key, Vault, Link, Waypoints, Leaf, FileText } from 'lucide-react';
 
 const NODES = [
@@ -33,7 +33,11 @@ export const TransactionFlow: React.FC = () => {
     <div className="w-full h-full flex items-center px-12 relative overflow-hidden bg-[#0A1410]/90 backdrop-blur-xl border-b border-emerald-900/40">
       {/* Background execution pulse */}
       {isExecuting && (
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-emerald-500/10 to-transparent animate-pulse pointer-events-none" />
+        <motion.div 
+            animate={{ opacity: [0.05, 0.15, 0.05], x: ['0%', '20%', '0%'] }}
+            transition={{ repeat: Infinity, duration: 4 }}
+            className="absolute inset-0 bg-gradient-to-r from-transparent via-emerald-500/20 to-transparent pointer-events-none" 
+        />
       )}
 
       <div className="flex items-center justify-between w-full max-w-7xl mx-auto z-10">
@@ -46,6 +50,22 @@ export const TransactionFlow: React.FC = () => {
             <React.Fragment key={node}>
               {/* Node Item */}
               <div className="flex items-center gap-4 relative shrink-0">
+                {/* Rotating Hub Rings for Active Node */}
+                {isActive && (
+                    <div className="absolute inset-0 z-0 flex items-center justify-center -left-6">
+                        <motion.div 
+                            animate={{ rotate: 360 }}
+                            transition={{ repeat: Infinity, duration: 8, ease: "linear" }}
+                            className="absolute w-20 h-20 border border-emerald-500/20 rounded-full border-dashed"
+                        />
+                        <motion.div 
+                            animate={{ rotate: -360 }}
+                            transition={{ repeat: Infinity, duration: 12, ease: "linear" }}
+                            className="absolute w-24 h-24 border border-emerald-500/10 rounded-full border-dotted"
+                        />
+                    </div>
+                )}
+
                 <div className={`relative z-10 flex items-center justify-center w-12 h-12 rounded-full border transition-all duration-500 ${
                   isPast ? 'bg-emerald-800/10 border-emerald-700 shadow-[0_0_10px_rgba(16,185,129,0.2)]' 
                   : isActive ? 'bg-emerald-500/20 border-emerald-400 shadow-[0_0_30px_rgba(16,185,129,0.6)]' 
@@ -80,12 +100,22 @@ export const TransactionFlow: React.FC = () => {
                 </div>
               </div>
 
-              {/* Connecting Line (Horizontal) */}
+              {/* Connecting Line with Laser Pulse */}
               {index !== NODES.length - 1 && (
                 <div className="flex-1 mx-6 relative flex items-center">
                   <div className={`w-full h-[1px] transition-colors duration-500 rounded-full ${
                     isPast ? 'bg-emerald-700 shadow-[0_0_5px_rgba(16,185,129,0.2)]' : 'bg-emerald-900/20'
                   }`} />
+                  
+                  {/* Laser Pulse for transition */}
+                  {index === transactionStep - 1 && (
+                      <motion.div 
+                        initial={{ left: "0%" }}
+                        animate={{ left: "100%" }}
+                        transition={{ duration: 0.5, ease: "easeInOut" }}
+                        className="absolute w-20 h-[3px] bg-emerald-400 blur-[2px] shadow-[0_0_15px_rgba(16,185,129,1)] z-20"
+                      />
+                  )}
                 </div>
               )}
             </React.Fragment>

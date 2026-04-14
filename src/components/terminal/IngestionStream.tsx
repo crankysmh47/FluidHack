@@ -15,15 +15,15 @@ export const IngestionStream: React.FC = () => {
   }, [logs]);
 
   return (
-    <div className="h-full flex flex-col font-mono p-6 relative overflow-hidden bg-[#030805]/90">
-      <div className="flex items-center justify-between mb-4 border-b border-emerald-900/20 pb-4">
+    <div className="h-full flex flex-col font-mono p-6 relative overflow-hidden bg-[#030805]/95 crt-flicker">
+      <div className="flex items-center justify-between mb-4 border-b border-emerald-900/20 pb-4 relative z-10">
         <div className="flex items-center gap-2">
           <Terminal className="text-emerald-400 w-4 h-4" />
           <h2 className="text-emerald-400 font-bold tracking-[0.3em] uppercase text-xs">{'>'} Ingestion Stream</h2>
         </div>
       </div>
 
-      <div className="flex gap-2 mb-6">
+      <div className="flex gap-2 mb-6 relative z-10">
         {[
           { id: 'all', label: 'All', Icon: Filter },
           { id: 'api', label: 'API', Icon: Cpu },
@@ -46,7 +46,7 @@ export const IngestionStream: React.FC = () => {
       
       <div 
         ref={scrollRef}
-        className="flex-grow overflow-y-auto space-y-2 pr-2 custom-scrollbar relative"
+        className="flex-grow overflow-y-auto space-y-2 pr-2 custom-scrollbar relative z-10"
         style={{ maskImage: 'linear-gradient(to bottom, transparent, black 10%, black 90%, transparent)', WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 10%, black 90%, transparent)' }}
       >
         <AnimatePresence initial={false}>
@@ -61,10 +61,23 @@ export const IngestionStream: React.FC = () => {
             return (
               <motion.div
                 key={log.id}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                className={`text-[10px] ${colorClass} flex gap-3 py-1 font-mono tracking-normal`}
+                initial={{ opacity: 0, x: 20, skewX: 20 }}
+                animate={{ 
+                    opacity: 1, 
+                    x: 0, 
+                    skewX: [20, -5, 0],
+                    filter: ["blur(10px)", "blur(0px)"]
+                }}
+                transition={{ duration: 0.3 }}
+                className={`text-[10px] ${colorClass} flex gap-3 py-1 font-mono tracking-normal relative`}
               >
+                {/* Micro Glitch Overlay */}
+                <motion.span 
+                    animate={{ opacity: [0, 1, 0] }}
+                    transition={{ duration: 0.1, delay: 0.1 }}
+                    className="absolute inset-0 bg-emerald-400/10 pointer-events-none"
+                />
+                
                 <span className="text-emerald-900/30 shrink-0 opacity-50">[{log.timestamp}]</span>
                 <span className="shrink-0 font-bold">{statusTag}</span>
                 <span className="leading-relaxed break-words">{log.message}</span>
@@ -79,6 +92,18 @@ export const IngestionStream: React.FC = () => {
           className="w-1.5 h-3 bg-emerald-500 mt-2"
         />
       </div>
+
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes flicker {
+          0% { opacity: 0.97; }
+          5% { opacity: 0.95; }
+          10% { opacity: 0.97; }
+          15% { opacity: 0.94; }
+          20% { opacity: 0.97; }
+          100% { opacity: 0.98; }
+        }
+        .crt-flicker { animation: flicker 0.15s infinite; }
+      `}} />
     </div>
   );
 };

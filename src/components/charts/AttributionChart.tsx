@@ -1,40 +1,62 @@
 // src/components/charts/AttributionChart.tsx
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { useCarbonStore } from '../../store/useCarbonStore';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+
+const DataPacket = ({ delay }: { delay: number }) => (
+    <motion.div 
+        initial={{ left: "-5%", bottom: "20%", opacity: 0 }}
+        animate={{ 
+            left: ["0%", "100%", "100%"],
+            bottom: ["20%", "20%", "80%"],
+            opacity: [0, 1, 1, 0]
+        }}
+        transition={{ 
+            duration: 8, 
+            repeat: Infinity, 
+            delay, 
+            times: [0, 0.7, 0.9, 1],
+            ease: "linear"
+        }}
+        className="absolute w-1 h-1 bg-emerald-400 rounded-full shadow-[0_0_8px_rgba(16,185,129,1)] z-30"
+    />
+);
 
 export const AttributionChart: React.FC = () => {
   const { ambientBase, stadiumBase, simulationFactor } = useCarbonStore();
 
   const data = useMemo(() => {
-    // Generate some historical-looking points for the Area chart
     const points = [];
     for (let i = 0; i < 7; i++) {
-      const variator = 1 + (Math.sin(i) * 0.1);
-      points.push({
-        time: `${i}:00`,
-        ambient: Math.round(ambientBase * simulationFactor * variator),
-        stadium: Math.round((stadiumBase + (simulationFactor * 5)) * (1 + (Math.cos(i) * 0.05))), 
-      });
+        const variator = 1 + (Math.sin(i * 1.5) * 0.1);
+        points.push({
+            time: `${i}:00`,
+            ambient: Math.round(ambientBase * simulationFactor * variator),
+            stadium: Math.round((stadiumBase + (simulationFactor * 5)) * (1 + (Math.cos(i * 0.8) * 0.05))), 
+        });
     }
     return points;
   }, [ambientBase, stadiumBase, simulationFactor]);
 
   return (
-    <motion.div 
-      className="h-full flex flex-col relative p-4"
-      animate={{ opacity: [0.98, 1, 0.98] }}
-      transition={{ repeat: Infinity, duration: 5, ease: "easeInOut" }}
-    >
-      <div className="flex items-center justify-between mb-8 px-4">
+    <div className="h-full flex flex-col relative p-4 group">
+      {/* 🚀 Animated Data Packets along Grid Layer */}
+      <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden opacity-40">
+        <DataPacket delay={0} />
+        <DataPacket delay={2} />
+        <DataPacket delay={4} />
+        <DataPacket delay={6} />
+      </div>
+
+      <div className="flex items-center justify-between mb-8 px-4 relative z-10">
         <div>
-          <h2 className="text-[10px] font-bold tracking-[0.4em] uppercase text-gray-500 mb-1">Telemetry Analysis</h2>
+          <h2 className="text-[10px] font-bold tracking-[0.4em] uppercase text-emerald-900/40 mb-1">Telemetry Analysis</h2>
           <h1 className="text-2xl font-black text-white tracking-widest uppercase">Real-Time Emission Vectors</h1>
         </div>
         <div className="text-right">
-          <p className="text-[9px] text-gray-500 font-mono">SAMPLING RATE: 0.5s</p>
-          <p className="text-[9px] text-teal font-mono">ENCRYPTED STREAM</p>
+          <p className="text-[9px] text-emerald-950 font-mono">SAMPLING RATE: 0.5s</p>
+          <p className="text-[9px] text-emerald-500 font-mono animate-pulse">ENCRYPTED STREAM</p>
         </div>
       </div>
 
@@ -61,21 +83,38 @@ export const AttributionChart: React.FC = () => {
               ticks={[0, 200, 450, 600]}
               tickFormatter={(val) => `${val} tCO2e`}
             />
+            {/* Custom Interactive Tooltip with Spring-like following */}
             <Tooltip 
               cursor={{ stroke: 'rgba(16, 185, 129, 0.2)', strokeWidth: 1 }}
               contentStyle={{ backgroundColor: 'rgba(5,10,8,0.95)', backdropFilter: 'blur(10px)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: '8px', boxShadow: '0 0 20px rgba(0,0,0,0.8)' }}
               itemStyle={{ fontFamily: 'monospace', fontSize: '11px' }}
             />
+            
+            {/* Base (Stable) Area with Breathing Animation */}
             <Area 
-              type="monotone" 
-              dataKey="stadium" 
-              name="Stadium Footprint (Stable)" 
-              stackId="1" 
-              stroke="#10b981" 
-              fillOpacity={1} 
-              fill="url(#colorStadium)" 
-              strokeWidth={3}
+                type="monotone" 
+                dataKey="stadium" 
+                name="Stadium Footprint (Stable)" 
+                stackId="1" 
+                stroke="#10b981" 
+                fillOpacity={1} 
+                fill="url(#colorStadium)" 
+                strokeWidth={3}
+                animationDuration={0} // Controlled by framer
+                isAnimationActive={false} // Manually animating via class/motion
             />
+
+            {/* Breathing Filter Overlay */}
+            <Area 
+                type="monotone" 
+                dataKey="stadium" 
+                stackId="overlay"
+                stroke="transparent"
+                strokeWidth={0}
+                fill="#10b981"
+                className="animate-pulse-slow opacity-20 pointer-events-none"
+            />
+            
             <Area 
               type="monotone" 
               dataKey="ambient" 
@@ -85,7 +124,9 @@ export const AttributionChart: React.FC = () => {
               fillOpacity={1} 
               fill="url(#colorAmbient)" 
               strokeWidth={3}
+              isAnimationActive={false}
             />
+
             <Legend 
               verticalAlign="top" 
               align="right" 
@@ -95,6 +136,14 @@ export const AttributionChart: React.FC = () => {
           </AreaChart>
         </ResponsiveContainer>
       </div>
-    </motion.div>
+
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes pulseSlow {
+           0%, 100% { opacity: 0.1; }
+           50% { opacity: 0.4; }
+        }
+        .animate-pulse-slow { animation: pulseSlow 4s ease-in-out infinite; }
+      `}} />
+    </div>
   );
 };
