@@ -5,7 +5,7 @@ import { useWeb3Modal } from '@web3modal/wagmi/react';
 import { useAccount } from 'wagmi';
 
 const Dashboard: React.FC = () => {
-  const { user, remainingBudget, totalOffset, logs, fetchStats, fetchLedger, revokeAgent, forceBuy, logout, uiMessage, isAgentActive, isDemoMode, toggleDemoMode, liveFeed, fetchLiveFeed } = useCarbonStore();
+  const { user, remainingBudget, totalOffset, logs, fetchStats, fetchLedger, revokeAgent, forceBuy, logout, uiMessage, isAgentActive, isDemoMode, toggleDemoMode, liveFeed, fetchLiveFeed, isPaymentAuthorized, authorizePayment, isLoading } = useCarbonStore();
   const navigate = useNavigate();
   const { open } = useWeb3Modal();
   const { isConnected } = useAccount();
@@ -306,6 +306,50 @@ const Dashboard: React.FC = () => {
           <span className="font-headline text-[10px] tracking-wide uppercase">History</span>
         </a>
       </nav>
+
+      {/* Authorization Overlay - Only visible if wallet is not connected or payment not authorized */}
+      {(!isConnected || !isPaymentAuthorized) && (
+        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-md flex flex-col items-center justify-center p-6">
+          <div className="max-w-2xl w-full text-center">
+            
+            <span className="material-symbols-outlined text-6xl text-primary mb-6 animate-pulse">
+              {!isConnected ? 'account_balance_wallet' : 'verified_user'}
+            </span>
+            
+            <h2 className="text-4xl md:text-5xl font-headline font-extrabold tracking-tight mb-4 text-on-surface">
+              {!isConnected ? 'Link Your Web3 Identity' : 'Authorize Agent Payment'}
+            </h2>
+            
+            <p className="text-lg text-on-surface-variant mb-10 max-w-xl mx-auto leading-relaxed">
+              {!isConnected 
+                ? "Connect your MetaMask or hardware wallet to bridge your Web2 account to the WireFluid testnet. This is required for on-chain settlement."
+                : "Grant the Sentinel AI protocol permission to autonomously execute carbon offsets on your behalf up to your designated budget limits."}
+            </p>
+
+            {!isConnected ? (
+              <button 
+                onClick={() => open()}
+                className="clinical-gradient text-white px-10 py-5 rounded-2xl font-headline font-bold text-xl uppercase tracking-widest biological-shadow active:scale-95 transition-all w-full max-w-md mx-auto flex justify-center items-center gap-3 hover:brightness-110 duration-200"
+              >
+                <span className="material-symbols-outlined">link</span>
+                Connect Wallet
+              </button>
+            ) : (
+              <button 
+                onClick={() => authorizePayment()}
+                disabled={isLoading}
+                className="bg-primary-container text-on-primary-container px-10 py-5 rounded-2xl font-headline font-bold text-xl uppercase tracking-widest shadow-2xl active:scale-95 transition-all w-full max-w-md mx-auto flex justify-center items-center gap-3 disabled:opacity-70 hover:scale-[1.02] duration-200"
+              >
+                <span className="material-symbols-outlined">
+                  {isLoading ? 'hourglass_empty' : 'signature'}
+                </span>
+                {isLoading ? 'Awaiting Signature...' : 'Authorize Spending'}
+              </button>
+            )}
+
+          </div>
+        </div>
+      )}
 
       {/* Internal Modals */}
       {isBuyModalOpen && (

@@ -45,6 +45,11 @@ interface CarbonStore {
   toggleDemoMode: () => void;
   liveFeed: any;
   fetchLiveFeed: () => Promise<void>;
+  
+  // Web3 Authorization
+  isPaymentAuthorized: boolean;
+  authorizePayment: () => Promise<boolean>;
+
   uiMessage: { text: string; type: 'success' | 'error' } | null;
   setUiMessage: (text: string, type: 'success' | 'error') => void;
   clearUiMessage: () => void;
@@ -62,7 +67,21 @@ export const useCarbonStore = create<CarbonStore>()(
       error: null,
       isDemoMode: false,
       liveFeed: null,
+      isPaymentAuthorized: false,
+
       toggleDemoMode: () => set((state) => ({ isDemoMode: !state.isDemoMode })),
+
+      authorizePayment: async () => {
+        set({ isLoading: true });
+        // Mocking a web3 wallet signature delay
+        return new Promise((resolve) => {
+          setTimeout(() => {
+            set({ isPaymentAuthorized: true, isLoading: false });
+            get().setUiMessage("Agent payment authorization confirmed.", "success");
+            resolve(true);
+          }, 2000);
+        });
+      },
 
       fetchLiveFeed: async () => {
         try {
@@ -207,7 +226,11 @@ export const useCarbonStore = create<CarbonStore>()(
     }),
     {
       name: 'carbon-storage',
-      partialize: (state) => ({ user: state.user, isDemoMode: state.isDemoMode }),
+      partialize: (state) => ({ 
+        user: state.user, 
+        isDemoMode: state.isDemoMode,
+        isPaymentAuthorized: state.isPaymentAuthorized
+      }),
     }
   )
 );
