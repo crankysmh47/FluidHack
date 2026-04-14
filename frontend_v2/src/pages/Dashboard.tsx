@@ -2,16 +2,42 @@ import React, { useEffect, useState } from 'react';
 import { useCarbonStore } from '../store/useCarbonStore';
 import { useNavigate } from 'react-router-dom';
 import { useWeb3Modal } from '@web3modal/wagmi/react';
-import { useAccount } from 'wagmi';
+import { useAccount, useSignMessage } from 'wagmi';
 
 const Dashboard: React.FC = () => {
-  const { user, remainingBudget, totalOffset, logs, fetchStats, fetchLedger, revokeAgent, forceBuy, logout, uiMessage, isAgentActive, isDemoMode, toggleDemoMode, liveFeed, fetchLiveFeed, isPaymentAuthorized, authorizePayment, isLoading } = useCarbonStore();
+  const { user, remainingBudget, totalOffset, logs, fetchStats, fetchLedger, revokeAgent, forceBuy, logout, uiMessage, setUiMessage, isAgentActive, isDemoMode, toggleDemoMode, liveFeed, fetchLiveFeed, isPaymentAuthorized, authorizePayment, isLoading } = useCarbonStore();
   const navigate = useNavigate();
   const { open } = useWeb3Modal();
-  const { isConnected } = useAccount();
+  const { isConnected, address } = useAccount();
+  const { signMessageAsync } = useSignMessage();
 
   const [isBuyModalOpen, setIsBuyModalOpen] = useState(false);
   const [buyAmount, setBuyAmount] = useState('1.00');
+  const [allowanceAmount, setAllowanceAmount] = useState(50);
+  const [txLimitAmount, setTxLimitAmount] = useState(20);
+  const [isAuthDismissed, setIsAuthDismissed] = useState(false);
+  const [countdown, setCountdown] = useState('24m 59s');
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const now = new Date();
+      const minutes = 29 - (now.getMinutes() % 30);
+      const seconds = 59 - now.getSeconds();
+      setCountdown(`${minutes}m ${seconds.toString().padStart(2, '0')}s`);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const handleAuthorize = async () => {
+    try {
+      const message = `Authorize Carbon Sentinel Agent\n\nUser: ${user?.id}\nWallet: ${address}\nDesignated AI Budget: $${allowanceAmount}\nTransaction Limit (Preimages): ${txLimitAmount}\n\nI grant the protocol permission to execute signature-less settlements on my behalf within these budget and transaction limits.`;
+      
+      await signMessageAsync({ message });
+      await authorizePayment(allowanceAmount, txLimitAmount);
+    } catch (err) {
+      console.error("Authorization user error:", err);
+    }
+  };
 
   useEffect(() => {
     if (!user) {
@@ -94,56 +120,36 @@ const Dashboard: React.FC = () => {
         {/* Section: Carbon Options List */}
         <section className="md:col-span-12 lg:col-span-7 flex flex-col gap-4">
           <div className="flex justify-between items-center mb-2">
-            <h2 className="text-xl font-headline font-semibold text-on-surface">Carbon Options List</h2>
-            <span className="text-xs font-label text-primary-container font-medium px-2 py-1 bg-primary/5 rounded-full">LIVE FEED</span>
+            <h2 className="text-xl font-headline font-semibold text-on-surface">Carbon Market Pulse</h2>
+            <span className="text-[10px] font-label text-emerald-600 font-bold px-2 py-1 bg-emerald-500/10 rounded-full border border-emerald-500/20">LIVE MARKET</span>
           </div>
-          <div className="flex flex-col gap-3">
-            {/* BCT Token */}
-            <div className="bg-surface-container-lowest p-5 rounded-xl border border-outline-variant/10 shadow-sm flex justify-between items-center">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-lg bg-primary-container/10 flex items-center justify-center text-primary">
-                  <span className="material-symbols-outlined">eco</span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {[
+              { id: 'bct', name: 'Base Carbon', desc: 'Verified Tonnes', fallback: '18.42', color: 'primary' },
+              { id: 'mco2', name: 'Moss Carbon', desc: 'Amazon Protection', fallback: '12.15', color: 'emerald-600' },
+              { id: 'nct', name: 'Nature Carbon', desc: 'Nature Based', fallback: '22.10', color: 'amber-600' },
+              { id: 'ubo', name: 'Universal Offset', desc: 'Basic Offset', fallback: '4.50', color: 'blue-500' }
+            ].map(token => (
+              <div key={token.id} className="bg-surface-container-lowest p-4 rounded-2xl border border-outline-variant/10 shadow-sm flex justify-between items-center hover:border-primary/20 transition-all cursor-pointer" onClick={() => navigate('/markets')}>
+                <div className="flex items-center gap-3">
+                  <div className={`w-8 h-8 rounded-lg bg-${token.color}/10 flex items-center justify-center text-${token.color}`}>
+                    <span className="material-symbols-outlined text-lg">{token.id === 'bct' ? 'eco' : token.id === 'mco2' ? 'cloud_done' : token.id === 'nct' ? 'forest' : 'waves'}</span>
+                  </div>
+                  <div>
+                    <p className="font-headline font-bold text-sm text-on-surface">{token.id.toUpperCase()}</p>
+                    <p className="text-[9px] text-on-surface-variant font-medium uppercase tracking-tighter">{token.desc}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-headline font-bold text-lg text-on-surface">BCT</p>
-                  <p className="text-xs text-on-surface-variant">Base Carbon Tonne</p>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="font-headline font-semibold text-primary">
-                  ${isDemoMode || !liveFeed?.crypto ? "18.42" : liveFeed.crypto.bct.price.toFixed(2)}
-                </p>
-                <p className={`text-[10px] flex items-center justify-end ${(!isDemoMode && liveFeed?.crypto?.bct?.change < 0) ? 'text-error' : 'text-primary'}`}>
-                  <span className="material-symbols-outlined text-xs">
-                    {(!isDemoMode && liveFeed?.crypto?.bct?.change < 0) ? 'arrow_drop_down' : 'arrow_drop_up'}
-                  </span> 
-                  {isDemoMode || !liveFeed?.crypto ? "+2.4" : (liveFeed.crypto.bct.change > 0 ? "+" : "") + liveFeed.crypto.bct.change.toFixed(1)}%
-                </p>
-              </div>
-            </div>
-            {/* MCO2 Token */}
-            <div className="bg-surface-container-lowest p-5 rounded-xl border border-outline-variant/10 shadow-sm flex justify-between items-center">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-lg bg-emerald-600/10 flex items-center justify-center text-emerald-600">
-                  <span className="material-symbols-outlined">cloud_done</span>
-                </div>
-                <div>
-                  <p className="font-headline font-bold text-lg text-on-surface">MCO2</p>
-                  <p className="text-xs text-on-surface-variant">Moss Carbon Credit</p>
+                <div className="text-right">
+                  <p className="font-headline font-bold text-primary text-sm">
+                    ${isDemoMode || !liveFeed?.crypto?.[token.id] ? token.fallback : liveFeed.crypto[token.id].price.toFixed(2)}
+                  </p>
+                  <p className={`text-[9px] font-bold ${(isDemoMode || !liveFeed?.crypto?.[token.id] || liveFeed.crypto[token.id].change >= 0) ? 'text-emerald-500' : 'text-error'}`}>
+                    {(isDemoMode || !liveFeed?.crypto?.[token.id]) ? "+1.2%" : (liveFeed.crypto[token.id].change > 0 ? "+" : "") + liveFeed.crypto[token.id].change.toFixed(1) + "%"}
+                  </p>
                 </div>
               </div>
-              <div className="text-right">
-                <p className="font-headline font-semibold text-primary">
-                  ${isDemoMode || !liveFeed?.crypto ? "12.15" : liveFeed.crypto.mco2.price.toFixed(2)}
-                </p>
-                <p className={`text-[10px] flex items-center justify-end ${(!isDemoMode && liveFeed?.crypto?.mco2?.change > 0) ? 'text-primary' : 'text-error'}`}>
-                  <span className="material-symbols-outlined text-xs">
-                    {(!isDemoMode && liveFeed?.crypto?.mco2?.change > 0) ? 'arrow_drop_up' : 'arrow_drop_down'}
-                  </span> 
-                  {isDemoMode || !liveFeed?.crypto ? "-0.8" : (liveFeed.crypto.mco2.change > 0 ? "+" : "") + liveFeed.crypto.mco2.change.toFixed(1)}%
-                </p>
-              </div>
-            </div>
+            ))}
           </div>
         </section>
 
@@ -199,8 +205,13 @@ const Dashboard: React.FC = () => {
                       <p className="text-3xl font-headline font-light text-primary">{liveFeed.sports.match.away_score ?? 0}</p>
                     </div>
                   </div>
-                  <div className="mt-auto text-center flex justify-center">
-                    <a href="https://www.espncricinfo.com/" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 px-3 py-1.5 rounded-full transition-colors">
+                  <div className="mt-auto text-center flex justify-center relative z-20">
+                    <a 
+                      href={`https://www.espncricinfo.com/search?q=${encodeURIComponent((liveFeed?.sports?.match?.home_team || 'PSL') + ' vs ' + (liveFeed?.sports?.match?.away_team || ''))}`} 
+                      target="_blank" 
+                      rel="noreferrer" 
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 px-3 py-1.5 rounded-full transition-colors cursor-pointer pointer-events-auto"
+                    >
                       <span className="material-symbols-outlined text-[14px]">sports_cricket</span>
                       View on ESPNCricinfo
                     </a>
@@ -221,8 +232,13 @@ const Dashboard: React.FC = () => {
                     <p className="font-headline font-bold text-xl">{liveFeed?.sports?.match?.home_team || 'Team A'} vs {liveFeed?.sports?.match?.away_team || 'Team B'}</p>
                     <p className="text-xs text-on-surface-variant mt-1">{liveFeed?.sports?.match?.date ? new Date(liveFeed.sports.match.date).toLocaleString([], {hour: '2-digit', minute:'2-digit'}) : 'TBD'}</p>
                   </div>
-                  <div className="mt-auto text-center flex justify-center">
-                    <a href="https://www.espncricinfo.com/" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 px-3 py-1.5 rounded-full transition-colors">
+                  <div className="mt-auto text-center flex justify-center relative z-20">
+                    <a 
+                      href={`https://www.espncricinfo.com/search?q=${encodeURIComponent((liveFeed?.sports?.match?.home_team || 'PSL') + ' vs ' + (liveFeed?.sports?.match?.away_team || ''))}`} 
+                      target="_blank" 
+                      rel="noreferrer" 
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 px-3 py-1.5 rounded-full transition-colors cursor-pointer pointer-events-auto"
+                    >
                       <span className="material-symbols-outlined text-[14px]">calendar_month</span>
                       Schedule on ESPNCricinfo
                     </a>
@@ -233,36 +249,67 @@ const Dashboard: React.FC = () => {
           </div>
         </section>
 
-        {/* Section: AI Agent Tracker */}
+        {/* Section: Sentinel Impact Pulse */}
         <section className="md:col-span-12">
-          <div className="flex justify-between items-end mb-4">
-            <h2 className="text-xl font-headline font-semibold text-on-surface">AI Agent Tracker</h2>
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
-              <span className="text-[10px] text-on-surface-variant font-label tracking-wide uppercase">Active Sentinel</span>
-            </div>
-          </div>
-          <div className="bg-surface-container-low rounded-2xl p-2">
-            <div className="flex flex-col">
-              {logs.length > 0 ? logs.map((log) => (
-                <div key={log.id} className="flex gap-4 p-4 items-start border-b border-outline-variant/10">
-                  <span className="material-symbols-outlined text-primary text-sm mt-1">
-                    {log.level === 'success' ? 'verified' : 'sync'}
-                  </span>
-                  <div className="flex-1">
-                    <div className="flex justify-between">
-                      <span className="font-headline font-bold text-sm">Autonomous Settlement</span>
-                      <span className="text-[10px] text-on-surface-variant/50">{log.timestamp}</span>
-                    </div>
-                    <p className="text-xs text-on-surface-variant mt-1">{log.message}</p>
-                  </div>
+          <div className="bg-gradient-to-br from-slate-900 to-slate-800 dark:from-emerald-950 dark:to-slate-950 rounded-[2.5rem] p-8 text-white shadow-2xl relative overflow-hidden group">
+            {/* Decorative Pulse Ring */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] border border-white/5 rounded-full animate-ping pointer-events-none"></div>
+            
+            <div className="relative z-10 grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
+              {/* Impact Narrative */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-400/80">Autonomous Sentinel Impact</span>
                 </div>
-              )) : (
-                <div className="p-10 text-center opacity-50">
-                  <span className="material-symbols-outlined text-4xl mb-2">monitoring</span>
-                  <p className="text-xs">Awaiting live telemetry pulse...</p>
+                <h3 className="text-4xl font-headline font-extrabold tracking-tighter">
+                  {Math.floor(totalOffset * 50)} <span className="text-emerald-400">Tree Years</span>
+                </h3>
+                <p className="text-slate-400 text-sm leading-relaxed max-w-xs">
+                  Your Sentinel has autonomously offset the equivalent of {(totalOffset * 50).toFixed(0)} full years of a mature tree's carbon sequestration capacity.
+                </p>
+              </div>
+
+              {/* Live Vitals Gauge */}
+              <div className="flex flex-col items-center justify-center border-l border-r border-white/10 px-8">
+                <div className="w-32 h-32 rounded-full border-4 border-emerald-500/20 flex items-center justify-center relative">
+                   <div className="absolute inset-0 rounded-full border-4 border-emerald-500 border-t-transparent animate-[spin_3s_linear_infinite]"></div>
+                   <div className="text-center">
+                     <p className="text-2xl font-headline font-black text-emerald-400">98%</p>
+                     <p className="text-[8px] uppercase font-bold text-white/40">Trust Factor</p>
+                   </div>
                 </div>
-              )}
+                <div className="mt-4 flex flex-col items-center">
+                  <p className="text-[10px] font-bold text-white/60 mb-1">NETWORK STATUS</p>
+                  <p className="text-xs font-mono text-emerald-500">WIREFLUID_ACTIVE</p>
+                </div>
+              </div>
+
+              {/* Cycle Orchestrator */}
+              <div className="space-y-6">
+                 <div>
+                   <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-2">Next Audit Cycle</p>
+                   <div className="flex items-center gap-4">
+                     <div className="flex-1 bg-white/5 h-2 rounded-full overflow-hidden">
+                       <div className="bg-emerald-500 h-full transition-all duration-1000" style={{ width: `${(1800 - ((new Date().getMinutes() % 30) * 60 + new Date().getSeconds())) / 1800 * 100}%` }}></div>
+                     </div>
+                     <span className="text-xs font-mono font-bold text-emerald-400">{countdown}</span>
+                   </div>
+                 </div>
+                 
+                 <div className="flex flex-col gap-2">
+                   <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Active Sentinel Protocol</p>
+                   <div className="flex gap-2">
+                     <span className="bg-emerald-500/20 text-emerald-400 text-[9px] font-bold px-2 py-1 rounded border border-emerald-500/30">L1_EMISSIONS</span>
+                     <span className="bg-blue-500/20 text-blue-400 text-[9px] font-bold px-2 py-1 rounded border border-blue-500/30">SPORTS_TRIG</span>
+                     <span className="bg-amber-500/20 text-amber-400 text-[9px] font-bold px-2 py-1 rounded border border-amber-500/30">STORM_GATE</span>
+                   </div>
+                 </div>
+
+                 <button onClick={() => navigate('/history')} className="w-full bg-white/10 hover:bg-white/20 transition-all py-3 rounded-xl text-xs font-bold border border-white/5 backdrop-blur-sm">
+                   View Full Sentinel Ledger
+                 </button>
+              </div>
             </div>
           </div>
         </section>
@@ -293,22 +340,22 @@ const Dashboard: React.FC = () => {
           <span className="material-symbols-outlined mb-1">dashboard</span>
           <span className="font-headline text-[10px] tracking-wide uppercase">Overview</span>
         </a>
-        <a className="flex flex-col items-center justify-center text-slate-400 opacity-60 hover:text-emerald-500 transition-colors" href="#">
+        <a onClick={() => navigate('/markets')} className="cursor-pointer flex flex-col items-center justify-center text-slate-400 opacity-60 hover:text-emerald-500 transition-colors">
           <span className="material-symbols-outlined mb-1">eco</span>
           <span className="font-headline text-[10px] tracking-wide uppercase">Markets</span>
         </a>
         <a onClick={() => navigate('/sandbox')} className="cursor-pointer flex flex-col items-center justify-center text-slate-400 opacity-60 hover:text-emerald-500 transition-colors">
           <span className="material-symbols-outlined mb-1">psychology</span>
-          <span className="font-headline text-[10px] tracking-wide uppercase">Agent</span>
+          <span className="font-headline text-[10px] tracking-wide uppercase">Demo</span>
         </a>
-        <a className="flex flex-col items-center justify-center text-slate-400 opacity-60 hover:text-emerald-500 transition-colors" href="#">
+        <a onClick={() => navigate('/history')} className="cursor-pointer flex flex-col items-center justify-center text-slate-400 opacity-60 hover:text-emerald-500 transition-colors">
           <span className="material-symbols-outlined mb-1">receipt_long</span>
           <span className="font-headline text-[10px] tracking-wide uppercase">History</span>
         </a>
       </nav>
 
-      {/* Authorization Overlay - Only visible if wallet is not connected or payment not authorized */}
-      {(!isConnected || !isPaymentAuthorized) && (
+      {/* Authorization Overlay - Only visible if wallet is not connected or payment not authorized and not dismissed */}
+      {(!isConnected || !isPaymentAuthorized) && !isAuthDismissed && (
         <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-md flex flex-col items-center justify-center p-6">
           <div className="max-w-2xl w-full text-center">
             
@@ -335,17 +382,62 @@ const Dashboard: React.FC = () => {
                 Connect Wallet
               </button>
             ) : (
-              <button 
-                onClick={() => authorizePayment()}
-                disabled={isLoading}
-                className="bg-primary-container text-on-primary-container px-10 py-5 rounded-2xl font-headline font-bold text-xl uppercase tracking-widest shadow-2xl active:scale-95 transition-all w-full max-w-md mx-auto flex justify-center items-center gap-3 disabled:opacity-70 hover:scale-[1.02] duration-200"
-              >
-                <span className="material-symbols-outlined">
-                  {isLoading ? 'hourglass_empty' : 'signature'}
-                </span>
-                {isLoading ? 'Awaiting Signature...' : 'Authorize Spending'}
-              </button>
+              <div className="flex flex-col items-center gap-6 w-full max-w-md mx-auto">
+                <div className="w-full bg-surface-container-high p-6 rounded-2xl border border-outline/20">
+                  <label className="block font-label text-xs text-on-surface-variant uppercase tracking-widest mb-3">
+                    Designate AI Spending Allowance (USD)
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-primary font-bold text-xl">$</span>
+                    <input 
+                      type="number" 
+                      value={allowanceAmount}
+                      onChange={(e) => setAllowanceAmount(Number(e.target.value))}
+                      className="w-full bg-surface-container-lowest border-none rounded-xl py-4 pl-10 pr-4 text-2xl font-headline font-bold focus:ring-2 focus:ring-primary outline-none"
+                    />
+                  </div>
+                  <p className="mt-4 text-[11px] text-on-surface-variant leading-relaxed">
+                    The agent will autonomously settle carbon offsets up to this amount using its internal efficient wallet.
+                  </p>
+                </div>
+
+                <div className="w-full bg-surface-container-high p-6 rounded-2xl border border-outline/20">
+                  <label className="block font-label text-xs text-on-surface-variant uppercase tracking-widest mb-3">
+                    Max Transactions (Preimages Authorised)
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-primary font-bold text-xl">#</span>
+                    <input 
+                      type="number" 
+                      value={txLimitAmount}
+                      onChange={(e) => setTxLimitAmount(Number(e.target.value))}
+                      className="w-full bg-surface-container-lowest border-none rounded-xl py-4 pl-10 pr-4 text-2xl font-headline font-bold focus:ring-2 focus:ring-primary outline-none"
+                    />
+                  </div>
+                  <p className="mt-4 text-[11px] text-on-surface-variant leading-relaxed">
+                    For enhanced protection, authorize a fixed number of transactions. The agent will require re-authorization after this count.
+                  </p>
+                </div>
+
+                <button 
+                  onClick={handleAuthorize}
+                  disabled={isLoading}
+                  className="bg-primary-container text-on-primary-container px-10 py-5 rounded-2xl font-headline font-bold text-xl uppercase tracking-widest shadow-2xl active:scale-95 transition-all w-full flex justify-center items-center gap-3 disabled:opacity-70 hover:scale-[1.02] duration-200"
+                >
+                  <span className="material-symbols-outlined">
+                    {isLoading ? 'hourglass_empty' : 'signature'}
+                  </span>
+                  {isLoading ? 'Awaiting Signature...' : 'Authorize Spending'}
+                </button>
+              </div>
             )}
+
+            <button 
+              onClick={() => setIsAuthDismissed(true)}
+              className="mt-8 text-on-surface-variant font-label text-xs uppercase tracking-widest hover:text-primary transition-colors cursor-pointer"
+            >
+              Skip for now - View Live Dashboard
+            </button>
 
           </div>
         </div>

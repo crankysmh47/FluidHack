@@ -22,6 +22,11 @@ from data_sources.sports_api import SportsAPIClient
 from data_sources.weather_api import WeatherAPIClient
 from attribution_engine import AttributionEngine
 from defillama_scraper import DefiLlamaScraper
+try:
+    from supabase import create_client, Client
+except ImportError:
+    Client = None
+    create_client = None
 from user_control import (
     get_user_config,
     check_budget_gate,
@@ -56,6 +61,14 @@ class CarbonSentinelAgent:
             self.em_client, self.weather_client, self.sports_client
         )
         self.defillama_scraper = DefiLlamaScraper()
+        
+        # Supabase Init
+        self.supabase = None
+        if create_client and SUPABASE_URL and SUPABASE_KEY:
+            try:
+                self.supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+            except Exception as e:
+                print(f"[Agent] [!] Supabase Init Failed: {e}")
 
     # ── Public entry points ───────────────────────────────────────────────────
 
@@ -91,29 +104,66 @@ class CarbonSentinelAgent:
         print("\n[2/4] Calculating stadium carbon footprint...")
         stadium_key = self.match_config.get("stadium_key", "national_stadium_karachi")
 
-        # Sync spectatorless_mode from user config
-        user_cfg = get_user_config(self.user_id)
-        if user_cfg.get("spectatorless_mode", False):
-            os.environ["SPECTATORLESS_MODE"] = "True"
-        else:
-            os.environ.pop("SPECTATORLESS_MODE", None)
-
-        # Dynamically calculate match duration from matchStarted timestamp
-        calculated_hours = 3.0
-        if match_info and "matchStarted" in match_info and match_info["matchStarted"]:
+        # Check for demo surge override
+        override_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "glue", "surge_override.json")
+        is_surge = False
+        override_event = None
+        if os.path.exists(override_file):
             try:
-                start_time_str = match_info["matchStarted"].replace("Z", "+00:00")
-                start_time = datetime.fromisoformat(start_time_str)
-                elapsed = datetime.now(timezone.utc) - start_time
-                calculated_hours = max(0.1, elapsed.total_seconds() / 3600)
-                print(f"  Dynamic Match Duration: {calculated_hours:.2f} hours")
-            except Exception as e:
-                print(f"  [Warning] Failed to parse start time, defaulting to 3.0 hours. Error: {e}")
+                with open(override_file, "r") as f:
+                    ov_data = json.load(f)
+                    if ov_data.get("event") in ["surge", "peak"]:
+                        is_surge = True
+                        override_event = ov_data.get("event")
+                        print(f"  [DEMO] ⚡ Grid Surge Override Detected: {override_event}")
+            except:
+                pass
 
-        footprint_result = self.attribution_engine.calculate_stadium_footprint(
-            stadium_key, match_info, calculated_hours
-        )
-        print(self.attribution_engine.get_attribution_explanation(footprint_result))
+        if is_surge:
+            # Differential Logic for Demo
+            cur_i = 315.0 if override_event == "surge" else 450.0
+            diff_res = self.attribution_engine.calculate_differential_footprint(
+                stadium_key, 
+                current_intensity=cur_i, 
+                baseline_intensity=200.0,
+                is_peak_load=(override_event == "peak")
+            )
+            footprint_result = {
+                "calculated_footprint_kg": diff_res["excess_footprint_kg"],
+                "breakdown": {
+                    "grid_intensity_gco2_kwh": diff_res["current_intensity"],
+                    "stadium_consumption_kwh": (diff_res["active_load_kw"] / 1000.0) * (15/60.0),
+                    "is_surge": True,
+                    "event_type": override_event,
+                    "floodlights_on": (override_event == "peak"),
+                    "weather": {"temperature_c": 28, "humidity_pct": 65} # Mock
+                }
+            }
+            print(f"  [Agent] Calculated Excess Carbon: {footprint_result['calculated_footprint_kg']} kg (Surge Mode)")
+        else:
+            # Sync spectatorless_mode from user config
+            user_cfg = get_user_config(self.user_id)
+            if user_cfg.get("spectatorless_mode", False):
+                os.environ["SPECTATORLESS_MODE"] = "True"
+            else:
+                os.environ.pop("SPECTATORLESS_MODE", None)
+
+            # Dynamically calculate match duration from matchStarted timestamp
+            calculated_hours = 3.0
+            if match_info and "matchStarted" in match_info and match_info["matchStarted"]:
+                try:
+                    start_time_str = match_info["matchStarted"].replace("Z", "+00:00")
+                    start_time = datetime.fromisoformat(start_time_str)
+                    elapsed = datetime.now(timezone.utc) - start_time
+                    calculated_hours = max(0.1, elapsed.total_seconds() / 3600)
+                    print(f"  Dynamic Match Duration: {calculated_hours:.2f} hours")
+                except Exception as e:
+                    print(f"  [Warning] Failed to parse start time, defaulting to 3.0 hours. Error: {e}")
+
+            footprint_result = self.attribution_engine.calculate_stadium_footprint(
+                stadium_key, match_info, calculated_hours
+            )
+            print(self.attribution_engine.get_attribution_explanation(footprint_result))
 
         # ── Step 3: Find cheapest carbon credit ───────────────────────────────
         print("\n[3/4] Scraping DefiLlama for cheapest carbon credit...")
@@ -166,10 +216,10 @@ class CarbonSentinelAgent:
         """
         user_cfg = get_user_config(self.user_id)
         if not user_cfg.get("is_active", True):
-            print(f"[Agent] ❌ Force-buy blocked: Agent is revoked for user {self.user_id}")
+            print(f"[Agent] [X] Force-buy blocked: Agent is revoked for user {self.user_id}")
             return None
 
-        print(f"\n[Agent] 💰 FORCE BUY — ${amount_usd:.4f} for {self.user_id}")
+        print(f"\n[Agent] [FORCE_BUY] ${amount_usd:.4f} for {self.user_id}")
 
         # Build a synthetic decision with the specified amount
         cheapest_credit = self.defillama_scraper.get_cheapest_carbon_credit()
@@ -302,9 +352,9 @@ class CarbonSentinelAgent:
                 row["calculated_footprint_kg"] = decision["calculated_footprint_kg"]
                 supabase.table("decisions").insert(row).execute()
                 
-            print("[Supabase] ✅ Decision logged.")
+            print("[Supabase] [OK] Decision logged.")
         except Exception as e:
-            print(f"[Supabase] ⚠️  Warning: Could not log decision to 'decisions' table: {e}")
+            print(f"[Supabase] [!] Warning: Could not log decision to 'decisions' table: {e}")
             print("           (Continuing execution as decision is preserved in local logs and offset_ledger)")
 
     def _execute_on_chain(self, decision: dict) -> dict | None:

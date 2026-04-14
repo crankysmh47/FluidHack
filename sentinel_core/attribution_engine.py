@@ -98,6 +98,46 @@ class AttributionEngine:
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
+    def calculate_differential_footprint(
+        self,
+        stadium_key: str,
+        current_intensity: float,
+        baseline_intensity: float = 200.0,
+        interval_minutes: float = 15.0,
+        is_peak_load: bool = False
+    ) -> dict:
+        """
+        Calculates 'Excess Carbon' triggered by a grid surge.
+        Formula: (Current - Baseline) * Load * Interval
+        """
+        stadium = STADIUMS.get(stadium_key)
+        if not stadium:
+            raise ValueError(f"Unknown stadium: {stadium_key}")
+
+        delta_intensity = max(0, current_intensity - baseline_intensity)
+        
+        # Load calculation (Base + peak factor if simulated)
+        base_load_kw = 100
+        active_load_kw = base_load_kw + (stadium["capacity_kw"] if is_peak_load else 0)
+        
+        # Consumption for the interval (kWh)
+        interval_hours = interval_minutes / 60.0
+        interval_consumption_kwh = (active_load_kw / 1000.0) * interval_hours
+        
+        # Excess emissions (kg CO2)
+        excess_kg = (delta_intensity * interval_consumption_kwh) / 1000.0
+        
+        return {
+            "excess_footprint_kg": round(excess_kg, 4),
+            "current_intensity": current_intensity,
+            "baseline_intensity": baseline_intensity,
+            "intensity_delta": delta_intensity,
+            "is_peak_load": is_peak_load,
+            "interval_minutes": interval_minutes,
+            "active_load_kw": active_load_kw,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+
     def get_attribution_explanation(self, result: dict) -> str:
         bd = result["breakdown"]
         explanation = (

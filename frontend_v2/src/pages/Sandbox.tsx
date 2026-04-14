@@ -1,6 +1,9 @@
 import React, { useEffect } from 'react';
 import { useCarbonStore } from '../store/useCarbonStore';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
+
+const API_BASE = 'http://localhost:5000';
 
 const Sandbox: React.FC = () => {
   const { user, forceBuy, uiMessage, setUiMessage } = useCarbonStore();
@@ -9,6 +12,15 @@ const Sandbox: React.FC = () => {
   useEffect(() => {
     if (!user) navigate('/');
   }, [user, navigate]);
+
+  const handleSimulate = async (event: string) => {
+    try {
+      await axios.post(`${API_BASE}/demo/trigger-event`, { event });
+      setUiMessage(`Simulation Triggered: ${event}. Agent will detect in next cycle.`, "success");
+    } catch (err) {
+      setUiMessage("Failed to trigger simulation.", "error");
+    }
+  };
 
   return (
     <div className="bg-background text-on-background font-body selection:bg-primary-fixed min-h-screen pb-32">
@@ -76,43 +88,51 @@ const Sandbox: React.FC = () => {
           {/* Environment Simulators Card */}
           <div className="md:col-span-7 bg-surface-container-low rounded-xl p-8 border border-outline-variant/10">
             <div className="flex items-center gap-4 mb-8">
-              <span className="material-symbols-outlined text-primary text-3xl">cloud_sync</span>
-              <h3 className="font-headline text-2xl font-light">Environment Simulators</h3>
+              <span className="material-symbols-outlined text-primary text-3xl">bolt</span>
+              <h3 className="font-headline text-2xl font-light">Grid Dynamics Simulator</h3>
             </div>
-            <div className="space-y-6">
-              {/* Toggle 1 */}
-              <div className="flex items-center justify-between py-4 border-b border-outline-variant/20">
+            <div className="space-y-4">
+              <button 
+                onClick={() => handleSimulate('surge')}
+                className="w-full flex items-center justify-between p-4 bg-surface rounded-xl border border-outline/10 hover:border-primary/50 transition-all hover:bg-primary/5 group"
+              >
                 <div className="flex items-center gap-4">
-                  <span className="material-symbols-outlined text-on-surface-variant">gradient</span>
-                  <span className="font-label font-medium text-on-surface">Heatwave Active</span>
+                  <span className="material-symbols-outlined text-amber-500">warning</span>
+                  <div className="text-left">
+                    <span className="block font-headline font-bold text-on-surface">Simulate Grid Surge</span>
+                    <span className="text-[10px] text-on-surface-variant uppercase tracking-widest">Trigger +30% Carbon Intensity Spike</span>
+                  </div>
                 </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input className="sr-only peer" type="checkbox" />
-                  <div className="w-12 h-6 bg-surface-container-highest peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-                </label>
-              </div>
-              {/* Toggle 2 */}
-              <div className="flex items-center justify-between py-4 border-b border-outline-variant/20">
+                <span className="material-symbols-outlined group-hover:translate-x-1 transition-transform">chevron_right</span>
+              </button>
+
+              <button 
+                onClick={() => handleSimulate('peak')}
+                className="w-full flex items-center justify-between p-4 bg-surface rounded-xl border border-outline/10 hover:border-primary/50 transition-all hover:bg-primary/5 group"
+              >
                 <div className="flex items-center gap-4">
-                  <span className="material-symbols-outlined text-on-surface-variant">lightbulb</span>
-                  <span className="font-label font-medium text-on-surface">Stadium Floodlights On</span>
+                  <span className="material-symbols-outlined text-red-500">trending_up</span>
+                  <div className="text-left">
+                    <span className="block font-headline font-bold text-on-surface">Simulate Stadium Peak Load</span>
+                    <span className="text-[10px] text-on-surface-variant uppercase tracking-widest">Simulate Floodlights + Max Crowd Load</span>
+                  </div>
                 </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input defaultChecked className="sr-only peer" type="checkbox" />
-                  <div className="w-12 h-6 bg-surface-container-highest peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-                </label>
-              </div>
-              {/* Toggle 3 */}
-              <div className="flex items-center justify-between py-4">
+                <span className="material-symbols-outlined group-hover:translate-x-1 transition-transform">chevron_right</span>
+              </button>
+
+              <button 
+                onClick={() => handleSimulate('clear')}
+                className="w-full flex items-center justify-between p-4 bg-surface rounded-xl border border-outline/10 hover:border-primary/50 transition-all hover:bg-primary/5 group"
+              >
                 <div className="flex items-center gap-4">
-                  <span className="material-symbols-outlined text-on-surface-variant">groups</span>
-                  <span className="font-label font-medium text-on-surface">High Attendance</span>
+                  <span className="material-symbols-outlined text-emerald-500">check_circle</span>
+                  <div className="text-left">
+                    <span className="block font-headline font-bold text-on-surface">Reset to Baseline</span>
+                    <span className="text-[10px] text-on-surface-variant uppercase tracking-widest">Return to real-world grid telemetry</span>
+                  </div>
                 </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input className="sr-only peer" type="checkbox" />
-                  <div className="w-12 h-6 bg-surface-container-highest peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-                </label>
-              </div>
+                <span className="material-symbols-outlined group-hover:translate-x-1 transition-transform">chevron_right</span>
+              </button>
             </div>
           </div>
 

@@ -113,10 +113,12 @@ class SportsAPIClient:
 
     def get_next_psl_match(self) -> dict:
         """Fallback mock for next scheduled PSL match if nothing is live, to avoid excessive API scanning."""
+        from datetime import timedelta
+        tomorrow = datetime.now(timezone.utc) + timedelta(days=1)
         return {
-            "home_team": "Lahore Qalandars",
-            "away_team": "Karachi Kings",
-            "date": "2026-04-20T14:00:00Z", 
+            "home_team": "Peshawar Zalmi",
+            "away_team": "Quetta Gladiators",
+            "date": tomorrow.replace(hour=14, minute=0, second=0, microsecond=0).isoformat(),
             "status": "NS",
             "status_long": "Not Started"
         }

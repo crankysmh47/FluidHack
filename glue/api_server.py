@@ -21,6 +21,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 import time
 
+# Ensure project root is in sys.path for local module imports
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+
 _FEED_CACHE = {
     "crypto": None,
     "crypto_ts": 0,
@@ -53,6 +56,7 @@ from user_control import (
     request_force_buy,
     get_total_offset_stats,
     check_budget_gate,
+    get_user_ledger,
 )
 from tx_log import read_all_txs, get_total_stats, get_hashes_only
 
@@ -102,7 +106,7 @@ def auth_signup():
     _save_auth(db)
     
     # Provision config
-    create_user_config(username, display_name=username, budget_usd=50.0)
+    create_user_config(username, display_name=username, budget_usd=0.0)
     return _ok({"message": "Signup successful", "user_id": username})
 
 @app.route("/auth/login", methods=["POST"])
@@ -154,31 +158,56 @@ def live_feed():
         try:
             from defillama_scraper import DefiLlamaScraper
             scraper = DefiLlamaScraper()
-            bct_pool = None
-            mco2_pool = None
-            for p in scraper.filter_refi_pools():
-                sym = p.get("symbol", "").upper()
-                if "BCT" in sym and p.get("tvlUsd", 0) > 10000:
-                    bct_pool = p
-                if "MCO2" in sym and p.get("tvlUsd", 0) > 10000:
-                    mco2_pool = p
+            pools = scraper.filter_refi_pools()
             
-            # Simulated fallback prices if pools are weirdly structured today
-            bct_price = 18.42
-            mco2_price = 12.15
+            # Extract multiple tokens
+            tokens = ["BCT", "MCO2", "NCT", "UBO"]
+            crypto_data = {}
             
-            _FEED_CACHE["crypto"] = {
-                "bct": {"price": bct_price, "change": 2.4},
-                "mco2": {"price": mco2_price, "change": -0.8}
-            }
+            # Fetch real prices first
+            real_prices = scraper.get_real_prices(tokens)
+            
+            for t_sym in tokens:
+                t_lower = t_sym.lower()
+                found_pool = next((p for p in pools if t_sym in p.get("symbol", "").upper() and p.get("tvlUsd", 0) > 2000), None)
+                
+                # Fetch fallback if needed
+                fallback_vals = {
+                    "bct": {"price": 18.42, "change": 2.4, "tvl": 500000, "chain": "Polygon"},
+                    "mco2": {"price": 12.15, "change": -0.8, "tvl": 120000, "chain": "Polygon"},
+                    "nct": {"price": 22.10, "change": 1.2, "tvl": 85000, "chain": "Polygon"},
+                    "ubo": {"price": 4.50, "change": 5.4, "tvl": 32000, "chain": "Polygon"}
+                }
+                
+                # Use real price if available, otherwise pool price, otherwise fallback
+                r_price = real_prices.get(t_lower, {}).get("price", 0)
+                p_price = float(found_pool.get("price", 0)) if found_pool else 0
+                
+                # Determine final price (with floor from fallback)
+                final_price = r_price or p_price or fallback_vals[t_lower]["price"]
+                
+                crypto_data[t_lower] = {
+                    "price": float(final_price),
+                    "change": float(found_pool.get("apy", 0)) if found_pool else fallback_vals[t_lower]["change"],
+                    "tvl": float(found_pool.get("tvlUsd", 0)) if found_pool else fallback_vals[t_lower]["tvl"],
+                    "chain": found_pool.get("chain", "Polygon") if found_pool else fallback_vals[t_lower]["chain"]
+                }
+
+            _FEED_CACHE["crypto"] = crypto_data
             _FEED_CACHE["crypto_ts"] = now
         except Exception as e:
             print(f"[LiveFeed] Crypto error: {e}")
             if not _FEED_CACHE["crypto"]:
-                _FEED_CACHE["crypto"] = {"bct": {"price": 18.42, "change": 2.4}, "mco2": {"price": 12.15, "change": -0.8}}
+                _FEED_CACHE["crypto"] = {
+                    "bct": {"price": 18.42, "change": 2.4}, 
+                    "mco2": {"price": 12.15, "change": -0.8},
+                    "nct": {"price": 22.10, "change": 1.2},
+                    "ubo": {"price": 4.50, "change": 5.4}
+                }
 
-    # 2. Sports Data (cached logic: 30s if live, 300s if not)
-    if not _FEED_CACHE["sports"] or now - _FEED_CACHE["sports_ts"] > 60:
+    # 2. Sports Data (Refresh every 3min if live, every 1hour if not)
+    # We use a long initial cache check, and then override sports_ts carefully.
+    if not _FEED_CACHE["sports"] or now - _FEED_CACHE["sports_ts"] > 0:
         try:
             from data_sources.sports_api import SportsAPIClient
             from config import DEFAULT_MATCH
@@ -194,12 +223,15 @@ def live_feed():
                 "is_live": is_live,
                 "match": match_info
             }
-            # Dynamic cache expiry boost if not live
-            _FEED_CACHE["sports_ts"] = now + (0 if is_live else 240)
+            # Cache duration: 180s (3m) if live, 3600s (1h) if not live
+            cache_duration = 180 if is_live else 3600
+            _FEED_CACHE["sports_ts"] = now + cache_duration
         except Exception as e:
             print(f"[LiveFeed] Sports error: {e}")
             if not _FEED_CACHE["sports"]:
                 _FEED_CACHE["sports"] = {"is_live": False, "match": None}
+            # If error, try again in 5 mins
+            _FEED_CACHE["sports_ts"] = now + 300
 
     return _ok({
         "crypto": _FEED_CACHE["crypto"],
@@ -248,6 +280,42 @@ def ledger():
     })
 
 
+OVERRIDE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "surge_override.json")
+
+def set_surge_override(event):
+    with open(OVERRIDE_FILE, "w") as f:
+        json.dump({"event": event, "timestamp": time.time()}, f)
+
+def clear_surge_override():
+    if os.path.exists(OVERRIDE_FILE):
+        os.remove(OVERRIDE_FILE)
+
+def get_surge_override():
+    if os.path.exists(OVERRIDE_FILE):
+        try:
+            with open(OVERRIDE_FILE, "r") as f:
+                return json.load(f)
+        except:
+            return None
+    return None
+
+@app.route("/demo/trigger-event", methods=["POST"])
+def trigger_demo_event():
+    """
+    Manually trigger a grid surcharge or stadium event.
+    Body: {"event": "surge" | "peak" | "clear"}
+    """
+    body = request.get_json(silent=True) or {}
+    event = body.get("event", "clear")
+    
+    if event == "clear":
+        clear_surge_override()
+        return _ok({"message": "Overrides cleared. System back to real-time grid data."})
+    
+    set_surge_override(event)
+    return _ok({"message": f"Simulated {event} triggered. Agent will detect spike in next cycle."})
+
+
 # ── User Config ───────────────────────────────────────────────────────────────
 
 @app.route("/user/<user_id>/config", methods=["GET"])
@@ -263,12 +331,13 @@ def set_config(user_id: str):
     Body JSON fields (all optional):
       - budget_usd: float
       - max_tx_usd: float
+      - authorized_tx_count: int
       - auto_execute: bool
       - spectatorless_mode: bool
       - display_name: str
     """
     body = request.get_json(silent=True) or {}
-    allowed = {"budget_usd", "max_tx_usd", "auto_execute", "spectatorless_mode", "display_name"}
+    allowed = {"budget_usd", "max_tx_usd", "authorized_tx_count", "auto_execute", "spectatorless_mode", "display_name"}
     fields = {k: v for k, v in body.items() if k in allowed}
 
     if not fields:
@@ -276,6 +345,13 @@ def set_config(user_id: str):
 
     updated = update_user_config(user_id, **fields)
     return _ok(updated)
+
+
+@app.route("/user/<user_id>/ledger/supabase", methods=["GET"])
+def user_ledger_supabase(user_id: str):
+    """Return full transaction history for a specific user from Supabase."""
+    limit = int(request.args.get("limit", 50))
+    return _ok(get_user_ledger(user_id, limit=limit))
 
 
 @app.route("/user/<user_id>/offsets", methods=["GET"])
@@ -385,7 +461,7 @@ def budget_check(user_id: str):
         "budget_usd": cfg.get("budget_usd"),
         "spent_usd": cfg.get("spent_usd"),
         "max_tx_usd": cfg.get("max_tx_usd"),
-        "remaining_usd": round(cfg.get("budget_usd", 50) - cfg.get("spent_usd", 0), 4),
+        "remaining_usd": round(cfg.get("budget_usd", 0) - cfg.get("spent_usd", 0), 4),
     })
 
 

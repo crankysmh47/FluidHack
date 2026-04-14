@@ -12,6 +12,8 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from config import DEFILLAMA_API_URL
 
+COINS_API_URL = "https://coins.llama.fi/prices/current"
+
 # Known ReFi (Regenerative Finance) tokens and their chains
 REFI_TOKENS = [
     {
@@ -151,17 +153,50 @@ class DefiLlamaScraper:
         if not matched_token:
             matched_token = REFI_TOKENS[0]  # Default to BCT on Polygon
 
+        # Get real price for the best pool token if possible
+        prices = self.get_real_prices([matched_token["symbol"]])
+        real_price = prices.get(matched_token["symbol"].lower(), {}).get("price", 1.5)
+
         return {
             "target_token": matched_token["address"],
             "token_symbol": matched_token["symbol"],
             "token_name": matched_token["name"],
             "source_chain": "Base",  # Our vault is on Base
             "dest_chain": matched_token["chain"],
-            "price_per_tonne_usd": 1.0,  # Carbon credits are ~$1-5/tonne
+            "price_per_tonne_usd": real_price,
             "tvl_usd": best_pool.get("tvlUsd", 0),
             "apy": best_pool.get("apy", 0),
             "pool_id": best_pool.get("pool", ""),
         }
+
+    def get_real_prices(self, symbols: list) -> dict:
+        """
+        Fetch current market prices for ReFi tokens from coins.llama.fi.
+        """
+        # Map symbols to addresses
+        addr_map = {t["symbol"].upper(): t["address"] for t in REFI_TOKENS}
+        coins_str = ",".join([f"polygon:{addr_map[s.upper()]}" for s in symbols if s.upper() in addr_map])
+        
+        endpoint = f"{COINS_API_URL}/{coins_str}"
+        try:
+            resp = requests.get(endpoint, timeout=10)
+            resp.raise_for_status()
+            data = resp.json().get("coins", {})
+            
+            # Re-map to symbols
+            result = {}
+            for coin_id, coin_data in data.items():
+                addr = coin_id.split(":")[1].lower()
+                for token in REFI_TOKENS:
+                    if token["address"].lower() == addr:
+                        result[token["symbol"].lower()] = {
+                            "price": coin_data.get("price", 0),
+                            "timestamp": coin_data.get("timestamp", 0)
+                        }
+            return result
+        except Exception as e:
+            print(f"[DefiLlama] Error fetching real prices: {e}")
+            return {}
 
     def get_multi_chain_comparison(self) -> list:
         """

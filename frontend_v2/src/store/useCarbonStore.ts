@@ -25,6 +25,11 @@ interface CarbonStore {
   
   // Logs
   logs: SystemLog[];
+  fullHistory: any[];
+  
+  // Tx Limits (Preimages)
+  authorizedTxCount: number;
+  remainingTxCount: number;
   
   // Config
   isAgentActive: boolean;
@@ -35,6 +40,7 @@ interface CarbonStore {
   logout: () => void;
   fetchStats: () => Promise<void>;
   fetchLedger: () => Promise<void>;
+  fetchFullHistory: () => Promise<void>;
   revokeAgent: () => Promise<void>;
   forceBuy: (amount: number) => Promise<void>;
   
@@ -48,7 +54,7 @@ interface CarbonStore {
   
   // Web3 Authorization
   isPaymentAuthorized: boolean;
-  authorizePayment: () => Promise<boolean>;
+  authorizePayment: (budget: number) => Promise<boolean>;
 
   uiMessage: { text: string; type: 'success' | 'error' } | null;
   setUiMessage: (text: string, type: 'success' | 'error') => void;
@@ -62,6 +68,9 @@ export const useCarbonStore = create<CarbonStore>()(
       remainingBudget: 0,
       totalOffset: 0,
       logs: [],
+      fullHistory: [],
+      authorizedTxCount: 0,
+      remainingTxCount: 0,
       isAgentActive: true,
       isLoading: false,
       error: null,
@@ -71,16 +80,33 @@ export const useCarbonStore = create<CarbonStore>()(
 
       toggleDemoMode: () => set((state) => ({ isDemoMode: !state.isDemoMode })),
 
-      authorizePayment: async () => {
+      authorizePayment: async (budget: number, txLimit: number = 20) => {
+        const { user } = get();
+        if (!user) return false;
         set({ isLoading: true });
-        // Mocking a web3 wallet signature delay
-        return new Promise((resolve) => {
-          setTimeout(() => {
-            set({ isPaymentAuthorized: true, isLoading: false });
-            get().setUiMessage("Agent payment authorization confirmed.", "success");
-            resolve(true);
-          }, 2000);
-        });
+        try {
+          // Update the backend configuration first
+          const res = await axios.post(`${API_BASE}/user/${user.id}/config`, {
+            budget_usd: budget,
+            authorized_tx_count: txLimit,
+            is_active: true,
+            auto_execute: true
+          });
+          
+          if (res.data.ok) {
+            set({ isPaymentAuthorized: true, authorizedTxCount: txLimit });
+            get().setUiMessage(`Protocol Authorized with $${budget} allowance and ${txLimit} transactions.`, "success");
+            await get().fetchStats();
+            return true;
+          }
+          return false;
+        } catch (err) {
+          console.error("Authorization Error:", err);
+          get().setUiMessage("Failed to authorize agent on the network.", "error");
+          return false;
+        } finally {
+          set({ isLoading: false });
+        }
       },
 
       fetchLiveFeed: async () => {
@@ -150,9 +176,14 @@ export const useCarbonStore = create<CarbonStore>()(
         try {
           const res = await axios.get(`${API_BASE}/user/${user.id}/budget-check?amount_usd=0`);
           if (res.data.ok) {
+            const isDemo = get().isDemoMode;
+            const multiplier = isDemo ? 1000 : 1;
+            
             set({ 
-              remainingBudget: res.data.data.remaining_usd,
-              totalOffset: res.data.data.spent_usd * 0.0045 // Mock conversion
+              remainingBudget: (isDemo && res.data.data.remaining_usd < 5) ? 5000 : res.data.data.remaining_usd * multiplier,
+              totalOffset: res.data.data.spent_usd * 0.0045 * multiplier,
+              authorizedTxCount: res.data.data.authorized_tx_count || 0,
+              remainingTxCount: (res.data.data.authorized_tx_count || 0) - (res.data.data.tx_count || 0)
             });
           }
         } catch (err) {
@@ -167,6 +198,14 @@ export const useCarbonStore = create<CarbonStore>()(
           const res = await axios.get(`${API_BASE}/ledger?per_page=10`);
           if (res.data.ok) {
             const mappedLogs = res.data.data.records.map((r: any) => {
+              if (!r.timestamp) {
+                return {
+                  id: r.tx_hash || Math.random().toString(),
+                  timestamp: 'Recent',
+                  message: `Offset: ${r.footprint_kg}kg | ID: ${r.match_id}`,
+                  level: 'success'
+                };
+              }
               // Fix Python date parsing (ensure timezone handled)
               const d = new Date(r.timestamp.endsWith('Z') || r.timestamp.includes('+') ? r.timestamp : r.timestamp + 'Z');
               const timeString = isNaN(d.getTime()) ? 'Unknown Time' : d.toLocaleTimeString();
@@ -181,6 +220,20 @@ export const useCarbonStore = create<CarbonStore>()(
           }
         } catch (err) {
           console.error("Ledger Fetch Error:", err);
+        }
+      },
+
+      fetchFullHistory: async () => {
+        const { user } = get();
+        if (!user) return;
+        try {
+          const res = await axios.get(`${API_BASE}/user/${user.id}/ledger/supabase?limit=100`);
+          if (res.data.ok) {
+            set({ fullHistory: res.data.data });
+          }
+        } catch (err) {
+          console.error("Full History Fetch Error:", err);
+          get().setUiMessage("Failed to fetch full history from Supabase.", "error");
         }
       },
 
@@ -203,22 +256,24 @@ export const useCarbonStore = create<CarbonStore>()(
       },
 
       forceBuy: async (amount: number) => {
-        const { user } = get();
+        const { user, setUiMessage } = get();
         if (!user) return;
         set({ isLoading: true });
         try {
-          const res = await axios.post(`${API_BASE}/user/${user.id}/force-buy`, {
-            amount_usd: amount,
-            match_id: "MANUAL_WEB_TRIGGER"
+          const res = await axios.post(`${API_BASE}/user/${user.id}/force-buy/immediate`, { 
+            amount_usd: amount 
           });
           if (res.data.ok) {
+            setUiMessage(`Protocol executed $${amount} offset successfully!`, "success");
             await get().fetchStats();
             await get().fetchLedger();
-            get().setUiMessage(`Force buy of $${amount} successfully queued.`, "success");
+          } else {
+            throw new Error(res.data.error || "Execution failed");
           }
-        } catch (err) {
-          set({ error: "Force buy failed" });
-          get().setUiMessage("Force buy failed.", "error");
+        } catch (err: any) {
+          console.error("Force Buy Error:", err);
+          const errMsg = err.response?.data?.error || err.message || "Execution blocked by agent policy.";
+          setUiMessage(`Force Buy Failed: ${errMsg}`, "error");
         } finally {
           set({ isLoading: false });
         }

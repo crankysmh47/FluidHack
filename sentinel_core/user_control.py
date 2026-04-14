@@ -43,6 +43,8 @@ DEFAULT_CONFIG = {
     "budget_usd": 50.0,
     "max_tx_usd": 5.0,
     "spent_usd": 0.0,
+    "authorized_tx_count": 50,
+    "tx_count": 0,
     "is_active": True,
     "auto_execute": True,
     "spectatorless_mode": False,
@@ -137,7 +139,7 @@ def restore_agent(user_id: str) -> dict:
 
 def record_spend(user_id: str, amount_usd: float) -> dict:
     """
-    Increment the cumulative spend counter for a user.
+    Increment the cumulative spend counter AND tx count for a user.
     Called automatically after each successful transaction.
     """
     sb = _get_supabase()
@@ -147,7 +149,8 @@ def record_spend(user_id: str, amount_usd: float) -> dict:
         # Use RPC or do read-modify-write
         config = get_user_config(user_id)
         new_spent = round(config.get("spent_usd", 0.0) + amount_usd, 6)
-        return update_user_config(user_id, spent_usd=new_spent)
+        new_tx_count = int(config.get("tx_count", 0) + 1)
+        return update_user_config(user_id, spent_usd=new_spent, tx_count=new_tx_count)
     except Exception as e:
         print(f"[UserControl] ⚠️  record_spend failed: {e}")
         return get_user_config(user_id)
@@ -182,6 +185,12 @@ def check_budget_gate(user_id: str, proposed_spend_usd: float) -> tuple[bool, st
             f"Budget exhausted. Budget=${budget:.2f}, Spent=${spent:.4f}, "
             f"Remaining=${remaining:.4f}. Proposed=${proposed_spend_usd:.4f}."
         )
+
+    # Check Tx Count (Preimage) Limit
+    auth_txs = int(config.get("authorized_tx_count", 50))
+    used_txs = int(config.get("tx_count", 0))
+    if used_txs >= auth_txs:
+        return False, f"Transaction count limit reached ({used_txs}/{auth_txs}). Re-authorize required."
 
     return True, "OK"
 
@@ -298,6 +307,24 @@ def get_total_offset_stats(user_id: str = None) -> dict:
     except Exception as e:
         print(f"[UserControl] ⚠️  get_total_offset_stats failed: {e}")
         return {}
+
+
+def get_user_ledger(user_id: str, limit: int = 50) -> list[dict]:
+    """Fetch full transaction history for a specific user from Supabase tx_log."""
+    sb = _get_supabase()
+    if not sb:
+        return []
+    try:
+        resp = sb.table("tx_log") \
+                 .select("*") \
+                 .eq("user_id", user_id) \
+                 .order("logged_at", desc=True) \
+                 .limit(limit) \
+                 .execute()
+        return resp.data or []
+    except Exception as e:
+        print(f"[UserControl] ⚠️  get_user_ledger failed: {e}")
+        return []
 
 
 # ── CLI test ──────────────────────────────────────────────────────────────────
