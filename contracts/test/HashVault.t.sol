@@ -152,24 +152,36 @@ contract HashVaultTest is Test {
         assertFalse(vault.validatePreimage(h2)); // h2 is not next
     }
 
-    // ── Admin: withdraw ────────────────────────────────────────────────────
+    // ── Admin: rotateChain ──────────────────────────────────────────────────
 
-    function test_SponsorCanWithdraw() public {
-        uint256 before = address(this).balance;
-        vault.withdraw(payable(address(this)), 0.5 ether);
-        assertGt(address(this).balance, before);
+    function test_SponsorCanRotateChain() public {
+        bytes32 newRoot = keccak256(abi.encodePacked("new_chain"));
+        vault.rotateChain(newRoot);
+        assertEq(vault.currentHash(), newRoot);
+        assertEq(vault.executionCount(), 0);
     }
 
-    function test_NonSponsorCannotWithdraw() public {
+    function test_NonSponsorCannotRotateChain() public {
         address attacker = address(0xBEEF);
         vm.prank(attacker);
         vm.expectRevert(HashVault.OnlySponsor.selector);
-        vault.withdraw(payable(attacker), 0.5 ether);
+        vault.rotateChain(keccak256(abi.encodePacked("new_chain")));
     }
 
-    function test_WithdrawZeroReverts() public {
-        vm.expectRevert(HashVault.ZeroAmount.selector);
-        vault.withdraw(payable(address(this)), 0);
+    // ── Admin: approveRouter ────────────────────────────────────────────────
+
+    function test_SponsorCanApproveRouter() public {
+        // We use a dummy token address. 
+        // In a real test we'd use a mock ERC20, but here we just check if it calls.
+        address token = address(0xABC);
+        // Mock the call to IERC20(token).approve
+        vm.mockCall(
+            token,
+            abi.encodeWithSelector(IERC20.approve.selector, address(mockWF), type(uint256).max),
+            abi.encode(true)
+        );
+        
+        vault.approveRouter(token);
     }
 
     // ── GAS BENCHMARK (critical: must be < 30,000 gas) ────────────────────

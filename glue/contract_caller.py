@@ -15,7 +15,7 @@ import time
 from web3 import Web3
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(override=True)
 
 # ── Full ABI for HashVault ────────────────────────────────────────────────────
 HASH_VAULT_ABI = [
@@ -86,10 +86,11 @@ def call_hash_vault(
     token_address: str,
     amount_usdc_wei: int,
     wirefluid_payload: bytes,
-    gas_limit: int = 250_000,
+    gas_limit: int = 1_000_000,
+    max_retries: int = 3,
 ) -> dict:
     """
-    Call HashVault.execute() on WireFluid testnet.
+    Call HashVault.execute() on WireFluid testnet with EIP-1559 and retry logic.
 
     Args:
         preimage_hex:       0x-prefixed preimage bytes32 from hash_chain.json
@@ -97,6 +98,7 @@ def call_hash_vault(
         amount_usdc_wei:    Amount in USDC base units (6 decimals: $5 = 5_000_000)
         wirefluid_payload:  ABI-encoded WireFluid intent bytes
         gas_limit:          Gas ceiling for the transaction
+        max_retries:        Number of times to retry on RPC/nonce errors
 
     Returns:
         {"tx_hash": str, "status": "success"|"failed", "gas_used": int,
@@ -134,57 +136,73 @@ def call_hash_vault(
     if balance_wire < 0.01:
         print("[ContractCaller] ⚠️  Low balance — get more from the WireFluid faucet!")
 
-    # Build transaction
-    nonce = w3.eth.get_transaction_count(account.address)
-    gas_price = w3.eth.gas_price
+    last_error = None
+    for attempt in range(max_retries):
+        try:
+            # Build transaction with EIP-1559
+            nonce = w3.eth.get_transaction_count(account.address, 'pending')
+            
+            # Dynamic EIP-1559 fees
+            latest_block = w3.eth.get_block('latest')
+            base_fee = latest_block.get('baseFeePerGas', 10_000_000_000) # 10 gwei default
+            priority_fee = w3.eth.max_priority_fee # Usually ~1-2 gwei
+            max_fee = int(base_fee * 1.5 + priority_fee) # 50% buffer on base fee
 
-    tx = vault.functions.execute(
-        preimage_bytes,
-        token_checksum,
-        amount_usdc_wei,
-        wirefluid_payload,
-    ).build_transaction(
-        {
-            "chainId": 92533,  # WireFluid Testnet
-            "from": account.address,
-            "nonce": nonce,
-            "gas": gas_limit,
-            "gasPrice": gas_price,
-        }
-    )
+            print(f"[ContractCaller] Attempt {attempt+1}/{max_retries} | Nonce: {nonce} | MaxFee: {max_fee/1e9:.2f} gwei")
 
-    # Sign and broadcast
-    signed = account.sign_transaction(tx)
-    print("[ContractCaller] Broadcasting transaction...")
-    try:
-        raw_tx = getattr(signed, "raw_transaction", None) or signed.rawTransaction
-        tx_hash = w3.eth.send_raw_transaction(raw_tx)
-    except Exception as e:
-        raise RuntimeError(f"Transaction broadcast failed: {e}") from e
+            tx = vault.functions.execute(
+                preimage_bytes,
+                token_checksum,
+                amount_usdc_wei,
+                wirefluid_payload,
+            ).build_transaction(
+                {
+                    "chainId": 92533,  # WireFluid Testnet
+                    "from": account.address,
+                    "nonce": nonce,
+                    "gas": gas_limit,
+                    "maxFeePerGas": max_fee,
+                    "maxPriorityFeePerGas": priority_fee,
+                }
+            )
 
-    tx_hash_hex = "0x" + tx_hash.hex() if not tx_hash.hex().startswith("0x") else tx_hash.hex()
-    print(f"[ContractCaller] TX Hash  : {tx_hash_hex}")
-    print(f"[ContractCaller] Explorer : https://wirefluidscan.com/tx/{tx_hash_hex}")
+            # Sign and broadcast
+            signed = account.sign_transaction(tx)
+            raw_tx = getattr(signed, "raw_transaction", None) or signed.rawTransaction
+            tx_hash = w3.eth.send_raw_transaction(raw_tx)
+            
+            tx_hash_hex = "0x" + tx_hash.hex() if not tx_hash.hex().startswith("0x") else tx_hash.hex()
+            print(f"[ContractCaller] TX Hash  : {tx_hash_hex}")
+            print(f"[ContractCaller] Explorer : https://wirefluidscan.com/tx/{tx_hash_hex}")
 
-    # Wait for receipt
-    print("[ContractCaller] Waiting for confirmation...")
-    receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
+            # Wait for receipt
+            print("[ContractCaller] Waiting for confirmation...")
+            receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
 
-    status = "success" if receipt.status == 1 else "failed"
-    execution_count = vault.functions.executionCount().call()
+            status = "success" if receipt.status == 1 else "failed"
+            execution_count = vault.functions.executionCount().call()
 
-    print(f"[ContractCaller] Status   : {status.upper()} (block #{receipt.blockNumber})")
-    print(f"[ContractCaller] Gas used : {receipt.gasUsed}")
-    print(f"[ContractCaller] Executions used: {execution_count}/1000")
+            print(f"[ContractCaller] Status   : {status.upper()} (block #{receipt.blockNumber})")
+            print(f"[ContractCaller] Gas used : {receipt.gasUsed}")
+            
+            return {
+                "tx_hash": tx_hash_hex,
+                "status": status,
+                "gas_used": receipt.gasUsed,
+                "block": receipt.blockNumber,
+                "execution_index": execution_count - 1,
+                "explorer_url": f"https://wirefluidscan.com/tx/{tx_hash_hex}",
+            }
 
-    return {
-        "tx_hash": tx_hash_hex,
-        "status": status,
-        "gas_used": receipt.gasUsed,
-        "block": receipt.blockNumber,
-        "execution_index": execution_count - 1,
-        "explorer_url": f"https://wirefluidscan.com/tx/{tx_hash_hex}",
-    }
+        except Exception as e:
+            print(f"[ContractCaller] ⚠️  Attempt {attempt+1} failed: {e}")
+            last_error = e
+            # Exponential backoff
+            time.sleep(2 ** attempt)
+            # Re-fetch web3 in case of connection drop
+            w3 = _build_web3()
+
+    raise RuntimeError(f"All {max_retries} broadcast attempts failed. Last error: {last_error}")
 
 
 if __name__ == "__main__":

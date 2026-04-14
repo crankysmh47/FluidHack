@@ -29,6 +29,10 @@ import "./interfaces/IWireFluid.sol";
 ///   • Preimages are single-use: once consumed, `currentHash` advances.
 ///   • `onlySponsor` guard on admin functions prevents unauthorized draining.
 ///
+interface IERC20 {
+    function approve(address spender, uint256 amount) external returns (bool);
+}
+
 contract HashVault {
     // ── Immutables ─────────────────────────────────────────────────────────
     address public immutable sponsor;
@@ -48,6 +52,8 @@ contract HashVault {
 
     event BudgetDeposited(address indexed from, uint256 amount);
     event BudgetWithdrawn(address indexed to, uint256 amount);
+    event ChainRotated(bytes32 indexed newRootHash);
+    event RouterApproved(address indexed token);
 
     // ── Errors ─────────────────────────────────────────────────────────────
     error InvalidPreimage(bytes32 got, bytes32 expected);
@@ -107,6 +113,22 @@ contract HashVault {
 
     // ── Admin ──────────────────────────────────────────────────────────────
 
+    /// @notice Resets the hash chain with a new root hash.
+    /// @param _newRootHash The tip of the new hash chain.
+    function rotateChain(bytes32 _newRootHash) external onlySponsor {
+        currentHash = _newRootHash;
+        executionCount = 0;
+        emit ChainRotated(_newRootHash);
+    }
+
+    /// @notice Sets infinite allowance for the WireFluid router on a token.
+    ///         Reduces gas by ~20k per execution by avoiding per-tx approval.
+    /// @param _token The ERC-20 token to approve.
+    function approveRouter(address _token) external onlySponsor {
+        IERC20(_token).approve(wireFluid, type(uint256).max);
+        emit RouterApproved(_token);
+    }
+
     /// @notice Sponsor can top up the vault's native budget.
     receive() external payable {
         emit BudgetDeposited(msg.sender, msg.value);
@@ -122,8 +144,9 @@ contract HashVault {
 
     // ── View helpers ───────────────────────────────────────────────────────
 
-    /// @notice Remaining preimages in a 1,000-deep chain (informational only).
+    /// @notice Remaining preimages in the current chain (assuming 1000 length).
     function remainingExecutions() external view returns (uint256) {
+        if (executionCount >= 1000) return 0;
         return 1000 - executionCount;
     }
 

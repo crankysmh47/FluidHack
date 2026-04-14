@@ -23,7 +23,7 @@ from dotenv import load_dotenv
 # Allow running from project root or glue/ directory
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-load_dotenv()
+load_dotenv(override=True)
 
 
 def run_execution(decision: dict) -> dict:
@@ -62,12 +62,25 @@ def run_execution(decision: dict) -> dict:
 
     # ── Step 3: Call the contract ─────────────────────────────────────────────
     print(f"[Executor] Step 3/3 — Calling HashVault.execute() on WireFluid Testnet...")
-    result = call_hash_vault(
-        preimage_hex=preimage_hex,
-        token_address=decision["target_token"],
-        amount_usdc_wei=int(decision.get("amount_usdc_wei", 0)),
-        wirefluid_payload=payload,
-    )
+    from preimage_manager import mark_used
+    
+    try:
+        result = call_hash_vault(
+            preimage_hex=preimage_hex,
+            token_address=decision["target_token"],
+            amount_usdc_wei=int(decision.get("amount_usdc_wei", 0)),
+            wirefluid_payload=payload,
+        )
+
+        if result["status"] == "success":
+            mark_used(idx)
+            print(f"[Executor] Local cache updated: Preimage #{idx} marked USED")
+            
+    except Exception as e:
+        print(f"[Executor] 🚨 Critical failure during contract call: {e}")
+        # In case of broadcast failure but potentially successful landing (timeout),
+        # we don't mark used here, but the next loop will see it on-chain anyway.
+        raise
 
     # Enrich result
     result["preimage_index"] = idx
