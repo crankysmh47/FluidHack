@@ -101,10 +101,18 @@ class CarbonSentinelAgent:
         print(f"\n{'='*60}")
         print("[Agent] DECISION PAYLOAD:")
         print(json.dumps(decision, indent=2))
+        print(f"  Buy {decision['amount_usd']:.4f} USD of {decision['metadata']['token_symbol']} "
+              f"on {decision['dest_chain']}")
         print(f"{'='*60}")
 
-        # Log to Supabase if configured
+        # Log to Supabase
         self._log_decision(decision)
+
+        # Step 5: Execute autonomously on-chain
+        if not getattr(self, '_dry_run', False):
+            self._execute_on_chain(decision)
+        else:
+            print("[Agent] --dry-run mode: skipping on-chain execution.")
 
         return decision
 
@@ -126,32 +134,43 @@ class CarbonSentinelAgent:
         return {}
 
     def _build_decision(self, footprint: dict, credit: dict) -> dict:
-        """Build the final decision payload (contract with Track 4)."""
+        """Build the final decision payload (contract with Track 4 / executor)."""
+        footprint_kg = footprint["calculated_footprint_kg"]
+        price_per_tonne = credit.get("price_per_tonne_usd", 1.5)
+
+        # Carbon credits: 1 tonne = 1 token. Footprint in kg → tonnes.
+        amount_usd = (footprint_kg / 1000.0) * price_per_tonne
+        # USDC has 6 decimals; enforce a $0.01 minimum to avoid dust txs.
+        amount_usd = max(amount_usd, 0.01)
+        amount_usdc_wei = int(amount_usd * 1_000_000)
+
         return {
             "match_id": self.match_id,
-            "calculated_footprint_kg": footprint["calculated_footprint_kg"],
+            "calculated_footprint_kg": footprint_kg,
             "target_token": credit["target_token"],
             "source_chain": credit["source_chain"],
             "dest_chain": credit["dest_chain"],
+            # --- Execution params ---
+            "amount_usd": round(amount_usd, 6),
+            "amount_usdc_wei": amount_usdc_wei,
             "metadata": {
                 "attribution_ratio": footprint["breakdown"]["attribution_ratio"],
                 "floodlights_on": footprint["breakdown"]["floodlights_on"],
                 "city_ac_load_factor": footprint["breakdown"]["city_ac_load_factor"],
                 "token_symbol": credit["token_symbol"],
+                "price_per_tonne_usd": price_per_tonne,
                 "tvl_usd": credit["tvl_usd"],
                 "timestamp": footprint["timestamp"],
             },
         }
 
     def _log_decision(self, decision: dict):
-        """Log decision to Supabase (if credentials are available)."""
+        """Log decision to Supabase `decisions` table."""
         if not SUPABASE_URL or not SUPABASE_KEY:
             print("[Supabase] Credentials not set. Skipping log.")
             return
-
         try:
             from supabase import create_client
-
             supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
             supabase.table("decisions").insert({
                 "match_id": decision["match_id"],
@@ -159,12 +178,35 @@ class CarbonSentinelAgent:
                 "target_token": decision["target_token"],
                 "source_chain": decision["source_chain"],
                 "dest_chain": decision["dest_chain"],
+                "amount_usd": decision.get("amount_usd"),
                 "metadata": decision.get("metadata", {}),
                 "created_at": datetime.now(timezone.utc).isoformat(),
             }).execute()
-            print("[Supabase] Decision logged successfully.")
+            print("[Supabase] ✅ Decision logged.")
         except Exception as e:
-            print(f"[Supabase] Error logging decision: {e}")
+            print(f"[Supabase] ⚠️  Error logging decision: {e}")
+
+    def _execute_on_chain(self, decision: dict):
+        """Call the glue executor to trigger the HashVault.execute() transaction."""
+        try:
+            # Import from glue/ directory
+            import importlib.util, pathlib
+            glue_dir = pathlib.Path(__file__).parent.parent / "glue"
+            spec = importlib.util.spec_from_file_location(
+                "executor", glue_dir / "executor.py"
+            )
+            executor_mod = importlib.util.module_from_spec(spec)
+            # Ensure glue/ is in path for executor's own imports
+            import sys
+            if str(glue_dir) not in sys.path:
+                sys.path.insert(0, str(glue_dir))
+            spec.loader.exec_module(executor_mod)
+            result = executor_mod.run_execution(decision)
+            return result
+        except Exception as e:
+            print(f"[Agent] ❌ On-chain execution failed: {e}")
+            print("[Agent]    Decision is in Supabase — retry with executor.py manually.")
+            return None
 
 
 def main():
@@ -172,7 +214,7 @@ def main():
     parser.add_argument("--match_id", type=str, default=None, help="Match ID to monitor")
     parser.add_argument("--loop", action="store_true", help="Run in continuous loop")
     parser.add_argument("--interval", type=int, default=60, help="Loop interval in seconds")
-    parser.add_argument("--dry-run", action="store_true", help="Run without Supabase logging")
+    parser.add_argument("--dry-run", action="store_true", help="Analyze only — skip on-chain execution")
     args = parser.parse_args()
 
     # Build match config
@@ -181,6 +223,7 @@ def main():
         match_config["match_id"] = args.match_id
 
     agent = CarbonSentinelAgent(match_config)
+    agent._dry_run = args.dry_run
 
     if args.loop:
         print(f"[Agent] Running in loop mode (interval={args.interval}s)")
