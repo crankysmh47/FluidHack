@@ -11,6 +11,7 @@ interface CarbonStore {
     accuracy: number;
     efficiency: number;
   };
+  telemetryData: { time: string; ambient: number; stadium: number }[];
   transactionStep: number;
   isExecuting: boolean;
   filter: 'all' | 'api' | 'nodal';
@@ -43,6 +44,7 @@ export const useCarbonStore = create<CarbonStore>((set, get) => ({
     accuracy: 99.8,
     efficiency: 94
   },
+  telemetryData: [],
   transactionStep: -1,
   isExecuting: false,
   filter: 'all',
@@ -88,8 +90,35 @@ export const useCarbonStore = create<CarbonStore>((set, get) => ({
   },
 
   initSimulation: () => {
+    // PRE-FILL telemetry with initial noise
+    const initialData = [];
+    const now = Date.now();
+    for (let i = 20; i >= 0; i--) {
+        const time = new Date(now - i * 3000).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        initialData.push({
+            time,
+            ambient: Math.round(get().ambientBase * get().simulationFactor * (0.9 + Math.random() * 0.2)),
+            stadium: Math.round(get().stadiumBase * (0.9 + Math.random() * 0.2))
+        });
+    }
+    set({ telemetryData: initialData });
+
+    // LIVE UPDATE LOOP
     setInterval(() => {
-      const { isExecuting, addLog } = get();
+      const { isExecuting, addLog, ambientBase, stadiumBase, simulationFactor, telemetryData } = get();
+      
+      // Update Telemetry
+      const nowTime = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      const variator = 1 + (Math.sin(Date.now() / 2000) * 0.1);
+      const newPoint = {
+          time: nowTime,
+          ambient: Math.round(ambientBase * simulationFactor * variator),
+          stadium: Math.round((stadiumBase + (simulationFactor * 5)) * (1 + (Math.cos(Date.now() / 1500) * 0.05))), 
+      };
+
+      set({ telemetryData: [...telemetryData, newPoint].slice(-20) });
+
+      // Simulated Logs
       if (!isExecuting && Math.random() > 0.6) {
         const msg = SIMULATED_MESSAGES[Math.floor(Math.random() * SIMULATED_MESSAGES.length)];
         const level = Math.random() > 0.8 ? 'warning' : Math.random() > 0.9 ? 'success' : 'info';

@@ -1,9 +1,63 @@
 // src/components/charts/AttributionChart.tsx
 import React, { useMemo, useState, useEffect } from 'react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from 'recharts';
 import { useCarbonStore } from '../../store/useCarbonStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MaskedText } from '../layout/MaskedText';
+import { Cpu, Target, Activity } from 'lucide-react';
+
+const CustomCursor = (props: any) => {
+    const { x, y, width, height } = props;
+    return (
+        <g>
+            <line x1={x} y1={0} x2={x} y2={height + 100} stroke="rgba(16,185,129,0.5)" strokeWidth={1} strokeDasharray="3 3" />
+            <circle cx={x} cy={y} r={10} fill="none" stroke="rgba(16,185,129,0.8)" strokeWidth={1} />
+            <circle cx={x} cy={y} r={2} fill="#10b981" />
+            
+            {/* Horizontal Target Line tracking mouse */}
+            <line x1={0} y1={y} x2={width + 100} y2={y} stroke="rgba(16,185,129,0.2)" strokeWidth={1} strokeDasharray="5 5" />
+        </g>
+    );
+};
+
+const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-[#050A08]/95 backdrop-blur-3xl border border-emerald-500/30 p-4 rounded-xl shadow-[0_0_40px_rgba(0,0,0,0.9)] min-w-[200px] relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-emerald-400 to-transparent" />
+            
+            <div className="flex items-center gap-3 mb-3 pb-2 border-b border-white/5">
+                <Target className="w-4 h-4 text-emerald-500" />
+                <span className="font-mono text-[10px] font-black tracking-widest text-emerald-400">VECTOR_LOCK: {label}</span>
+            </div>
+
+            <div className="space-y-3">
+                {payload.map((item: any, index: number) => (
+                    <div key={index} className="flex flex-col gap-1">
+                        <div className="flex items-center justify-between gap-6">
+                            <span className="text-[9px] font-mono font-black text-white/40 uppercase tracking-tighter">{item.name}</span>
+                            <span className="text-xs font-mono font-black text-white">{item.value} tCO2e</span>
+                        </div>
+                        <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
+                            <motion.div 
+                                initial={{ width: 0 }}
+                                animate={{ width: `${(item.value / 800) * 100}%` }}
+                                className={`h-full ${item.name === "Stadium Footprint" ? 'bg-emerald-500' : 'bg-red-500'}`}
+                            />
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            <div className="mt-4 flex items-center gap-2">
+                <Activity className="w-3 h-3 text-emerald-500/40 animate-pulse" />
+                <span className="text-[8px] font-mono text-emerald-500/20 font-black uppercase tracking-[0.2em]">Live Telemetry Active</span>
+            </div>
+        </div>
+      );
+    }
+    return null;
+};
 
 const DataPacket = ({ delay }: { delay: number }) => (
     <motion.div 
@@ -25,20 +79,11 @@ const DataPacket = ({ delay }: { delay: number }) => (
 );
 
 export const AttributionChart: React.FC = () => {
-  const { ambientBase, stadiumBase, simulationFactor } = useCarbonStore();
+  const { telemetryData, simulationFactor } = useCarbonStore();
 
-  const data = useMemo(() => {
-    const points = [];
-    for (let i = 0; i < 7; i++) {
-        const variator = 1 + (Math.sin(i * 1.5) * 0.1);
-        points.push({
-            time: `${i}:00`,
-            ambient: Math.round(ambientBase * simulationFactor * variator),
-            stadium: Math.round((stadiumBase + (simulationFactor * 5)) * (1 + (Math.cos(i * 0.8) * 0.05))), 
-        });
-    }
-    return points;
-  }, [ambientBase, stadiumBase, simulationFactor]);
+  // Threshold logic
+  const CRITICAL_THRESHOLD = 500;
+  const isHighStress = simulationFactor > 2.2;
 
   return (
     <div className="h-full flex flex-col relative p-6 group overflow-hidden">
@@ -79,7 +124,7 @@ export const AttributionChart: React.FC = () => {
 
       <div className="flex-grow w-full h-[500px] relative z-10">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data} margin={{ top: 20, right: 30, left: 10, bottom: 0 }}>
+          <AreaChart data={telemetryData} margin={{ top: 20, right: 30, left: 10, bottom: 0 }}>
             <defs>
               <linearGradient id="colorStadium" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#10b981" stopOpacity={0.8}/>
@@ -89,6 +134,16 @@ export const AttributionChart: React.FC = () => {
                 <stop offset="5%" stopColor="#ef4444" stopOpacity={0.8}/>
                 <stop offset="95%" stopColor="#ef4444" stopOpacity={0.05}/>
               </linearGradient>
+              
+              {/* Tactical Grid Pattern */}
+              <pattern id="tacticalGrid" width="40" height="40" patternUnits="userSpaceOnUse">
+                <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(16,185,129,0.1)" strokeWidth="0.5"/>
+              </pattern>
+
+              {/* Diagonal Scanlines */}
+              <pattern id="scanlines" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                <rect width="1" height="4" fill="rgba(16,185,129,0.05)" />
+              </pattern>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(16, 185, 129, 0.05)" vertical={true} />
             <XAxis dataKey="time" hide />
@@ -101,16 +156,23 @@ export const AttributionChart: React.FC = () => {
               tickFormatter={(val) => `${val} tCO2e`}
             />
             <Tooltip 
-              cursor={{ stroke: 'rgba(16, 185, 129, 0.4)', strokeWidth: 1 }}
-              contentStyle={{ 
-                  backgroundColor: 'rgba(5,10,8,0.95)', 
-                  backdropFilter: 'blur(20px)', 
-                  border: '1px solid rgba(16,185,129,0.2)', 
-                  borderRadius: '12px', 
-                  boxShadow: '0 0 30px rgba(0,0,0,0.8)',
-                  padding: '12px'
-              }}
-              itemStyle={{ fontFamily: 'monospace', fontSize: '11px', textTransform: 'uppercase' }}
+              cursor={<CustomCursor />}
+              content={<CustomTooltip />}
+            />
+            
+            {/* Critical Threshold Line */}
+            <ReferenceLine 
+                y={CRITICAL_THRESHOLD} 
+                stroke="#ef4444" 
+                strokeDasharray="5 5" 
+                label={{ 
+                    position: 'right', 
+                    value: 'STRATEGIC LIMIT', 
+                    fill: '#ef4444', 
+                    fontSize: 10, 
+                    fontWeight: 'black', 
+                    fontFamily: 'monospace' 
+                }} 
             />
             
             <Area 
@@ -121,10 +183,22 @@ export const AttributionChart: React.FC = () => {
                 stroke="#10b981" 
                 fillOpacity={1} 
                 fill="url(#colorStadium)" 
-                strokeWidth={4}
+                strokeWidth={isHighStress ? 2 : 4}
+                className={isHighStress ? "animate-pulse" : ""}
                 activeDot={{ r: 6, strokeWidth: 0, fill: '#10b981' }}
             />
             
+            {/* Grid Overlay inside Area */}
+            <Area 
+                type="monotone" 
+                dataKey="stadium" 
+                stackId="1" 
+                fill="url(#tacticalGrid)" 
+                stroke="none"
+                fillOpacity={0.4}
+                pointerEvents="none"
+            />
+
             <Area 
               type="monotone" 
               dataKey="ambient" 
@@ -133,8 +207,19 @@ export const AttributionChart: React.FC = () => {
               stroke="#ef4444" 
               fillOpacity={1} 
               fill="url(#colorAmbient)" 
-              strokeWidth={4}
+              strokeWidth={isHighStress ? 2 : 4}
+              className={isHighStress ? "animate-bounce" : ""}
               activeDot={{ r: 6, strokeWidth: 0, fill: '#ef4444' }}
+            />
+            
+            <Area 
+                type="monotone" 
+                dataKey="ambient" 
+                stackId="1" 
+                fill="url(#scanlines)" 
+                stroke="none"
+                fillOpacity={0.6}
+                pointerEvents="none"
             />
 
             <Legend 
