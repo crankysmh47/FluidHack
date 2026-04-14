@@ -20,7 +20,7 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     
-    "baseUrl": ".",
+    /* Removed baseUrl: "." as it is deprecated in TS 6.0+ */
     "paths": {
       "@/*": ["./src/*"]
     }
