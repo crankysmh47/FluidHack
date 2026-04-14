@@ -1,12 +1,14 @@
-// src/pages/Dashboard.tsx
-import React, { useEffect, useState, useRef } from 'react';
-import { motion, useMotionValue, useTransform, useSpring, useMotionTemplate } from 'framer-motion';
+import React, { useEffect, useState, useRef, Suspense, lazy } from 'react';
+import { motion, useMotionValue, useTransform, useSpring, useMotionTemplate, AnimatePresence } from 'framer-motion';
 import { useCarbonStore } from '../store/useCarbonStore';
-import { IngestionStream } from '../components/terminal/IngestionStream';
-import { AttributionChart } from '../components/charts/AttributionChart';
-import { TransactionFlow } from '../components/flow/TransactionFlow';
-import { PerformanceMetrics } from '../components/metrics/PerformanceMetrics';
-import { BottomControlPanel } from '../components/controls/BottomControlPanel';
+
+// Lazy load heavy components for instant initialization
+const IngestionStream = lazy(() => import('../components/terminal/IngestionStream').then(m => ({ default: m.IngestionStream })));
+const AttributionChart = lazy(() => import('../components/charts/AttributionChart').then(m => ({ default: m.AttributionChart })));
+const TransactionFlow = lazy(() => import('../components/flow/TransactionFlow').then(m => ({ default: m.TransactionFlow })));
+const PerformanceMetrics = lazy(() => import('../components/metrics/PerformanceMetrics').then(m => ({ default: m.PerformanceMetrics })));
+const BottomControlPanel = lazy(() => import('../components/controls/BottomControlPanel').then(m => ({ default: m.BottomControlPanel })));
+
 import { BootOverlay } from '../components/overlays/BootOverlay';
 import { PremiumPanel } from '../components/layout/PremiumPanel';
 import { ClickSpark } from '../components/layout/ClickSpark';
@@ -44,15 +46,21 @@ export const Dashboard: React.FC = () => {
     initSimulation();
   }, [initSimulation]);
 
-  const handleMouseMove = (e: React.MouseEvent) => {
+  const handleMouseMove = (e: MouseEvent) => {
     const { clientX, clientY } = e;
-    mouseX.set(clientX - window.innerWidth / 2);
-    mouseY.set(clientY - window.innerHeight / 2);
+    const x = clientX - window.innerWidth / 2;
+    const y = clientY - window.innerHeight / 2;
+    mouseX.set(x);
+    mouseY.set(y);
   };
+
+  useEffect(() => {
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, []);
 
   return (
     <div 
-      onMouseMove={handleMouseMove}
       className={cn(
         "relative w-screen h-screen overflow-hidden bg-[#050A08] perspective-1000 select-none cursor-none transition-all duration-300",
         impact ? "brightness-200 scale-[1.01] contrast-150" : "brightness-100 scale-100 contrast-100"
@@ -64,12 +72,12 @@ export const Dashboard: React.FC = () => {
       <DigitalWeather />
       <ThermalFilter />
 
-      {/* 🖱️ Elite Tactical Crosshair */}
+      {/* 🖱️ Elite Tactical Crosshair (Zero-Lag Sync) */}
       <motion.div 
         className="fixed top-0 left-0 w-10 h-10 pointer-events-none z-[1000] mix-blend-difference"
         style={{ 
-            x: useSpring(mouseX, { stiffness: 500, damping: 30 }), 
-            y: useSpring(mouseY, { stiffness: 500, damping: 30 }),
+            x: mouseX, 
+            y: mouseY,
             translateX: "-50%",
             translateY: "-50%"
         }}
@@ -108,75 +116,77 @@ export const Dashboard: React.FC = () => {
       </div>
 
       {/* 🖼️ HUD CONTENT CONTAINER */}
-      <motion.div 
-        initial={{ opacity: 0 }}
-        animate={{ opacity: isBooted ? 1 : 0 }}
-        className={cn(
-            "relative w-full h-full flex flex-col z-10 p-6 gap-6",
-            isExecuting && "animate-jitter"
-        )}
-        style={{ rotateX, rotateY, transformStyle: "preserve-3d" }}
-      >
-        {/* ROW 1: Execution Pipeline */}
+      <Suspense fallback={null}>
         <motion.div 
-          initial={{ y: -100, opacity: 0 }}
-          animate={isBooted ? { y: 0, opacity: 1 } : {}}
-          transition={{ duration: 1.5, delay: 0.5 }}
-          className="w-full h-[120px] relative z-40"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: isBooted ? 1 : 0 }}
+          className={cn(
+              "relative w-full h-full flex flex-col z-10 p-6 gap-6",
+              isExecuting && "animate-jitter"
+          )}
+          style={{ rotateX, rotateY, transformStyle: "preserve-3d" }}
         >
-          <TransactionFlow />
+          {/* ROW 1: Execution Pipeline */}
+          <motion.div 
+            initial={{ y: -50, opacity: 0 }}
+            animate={isBooted ? { y: 0, opacity: 1 } : {}}
+            transition={{ duration: 0.8, delay: 0.2 }}
+            className="w-full h-[120px] relative z-40"
+          >
+            <TransactionFlow />
+          </motion.div>
+
+          {/* MAIN GRID */}
+          <div className="flex-grow flex gap-6 min-h-0 relative z-20" style={{ transformStyle: "preserve-3d" }}>
+              {/* SIDEBAR L */}
+              <motion.div 
+                  initial={{ x: -100, opacity: 0 }}
+                  animate={isBooted ? { x: 0, opacity: 1 } : {}}
+                  transition={{ duration: 0.6, delay: 0.4 }}
+                  className="w-[340px] flex flex-col gap-6"
+              >
+                  <PremiumPanel className="flex-grow">
+                      <PerformanceMetrics />
+                  </PremiumPanel>
+              </motion.div>
+
+              {/* MAIN HUD */}
+              <motion.div 
+                  initial={{ scale: 0.95, opacity: 0 }}
+                  animate={isBooted ? { scale: 1, opacity: 1 } : {}}
+                  transition={{ duration: 0.8, delay: 0.6 }}
+                  className="flex-grow flex flex-col"
+                  style={{ transform: "translateZ(10px)" }}
+              >
+                  <PremiumPanel className="h-full">
+                      <AttributionChart />
+                  </PremiumPanel>
+              </motion.div>
+
+              {/* SIDEBAR R */}
+              <motion.div 
+                  initial={{ x: 100, opacity: 0 }}
+                  animate={isBooted ? { x: 0, opacity: 1 } : {}}
+                  transition={{ duration: 0.6, delay: 0.5 }}
+                  className="w-[440px] h-full"
+              >
+                  <PremiumPanel className="h-full">
+                      <IngestionStream />
+                  </PremiumPanel>
+              </motion.div>
+          </div>
+
+          {/* BOTTOM CONTROLS */}
+          <motion.div 
+            initial={{ y: 100, opacity: 0 }}
+            animate={isBooted ? { y: 0, opacity: 1 } : {}}
+            transition={{ duration: 0.7, delay: 0.8 }}
+            className="w-full h-[130px] relative z-30"
+          >
+            <BottomControlPanel />
+          </motion.div>
         </motion.div>
-
-        {/* MAIN GRID */}
-        <div className="flex-grow flex gap-6 min-h-0 relative z-20" style={{ transformStyle: "preserve-3d" }}>
-            {/* SIDEBAR L */}
-            <motion.div 
-                initial={{ x: -200, opacity: 0 }}
-                animate={isBooted ? { x: 0, opacity: 1 } : {}}
-                transition={{ duration: 1, delay: 0.8 }}
-                className="w-[340px] flex flex-col gap-6"
-            >
-                <PremiumPanel className="flex-grow">
-                    <PerformanceMetrics />
-                </PremiumPanel>
-            </motion.div>
-
-            {/* MAIN HUD */}
-            <motion.div 
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={isBooted ? { scale: 1, opacity: 1 } : {}}
-                transition={{ duration: 1.2, delay: 1.1 }}
-                className="flex-grow flex flex-col"
-                style={{ transform: "translateZ(10px)" }}
-            >
-                <PremiumPanel className="h-full">
-                    <AttributionChart />
-                </PremiumPanel>
-            </motion.div>
-
-            {/* SIDEBAR R */}
-            <motion.div 
-                initial={{ x: 200, opacity: 0 }}
-                animate={isBooted ? { x: 0, opacity: 1 } : {}}
-                transition={{ duration: 1, delay: 0.9 }}
-                className="w-[440px] h-full"
-            >
-                <PremiumPanel className="h-full">
-                    <IngestionStream />
-                </PremiumPanel>
-            </motion.div>
-        </div>
-
-        {/* BOTTOM CONTROLS */}
-        <motion.div 
-          initial={{ y: 200, opacity: 0 }}
-          animate={isBooted ? { y: 0, opacity: 1 } : {}}
-          transition={{ duration: 1, delay: 1.4 }}
-          className="w-full h-[130px] relative z-30"
-        >
-          <BottomControlPanel />
-        </motion.div>
-      </motion.div>
+      </Suspense>
 
       <style dangerouslySetInnerHTML={{ __html: `
         @keyframes jitter {

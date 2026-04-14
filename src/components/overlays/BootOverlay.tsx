@@ -46,13 +46,13 @@ interface BootOverlayProps {
 
 export const BootOverlay: React.FC<BootOverlayProps> = ({ onComplete }) => {
   const [show, setShow] = useState(true);
-  const scrambledTitle = useScramble("CARBON SENTINEL", 2000, 800);
+  const scrambledTitle = useScramble("CARBON SENTINEL", 1200, 400);
 
   useEffect(() => {
     const timer = setTimeout(() => {
       setShow(false);
-      setTimeout(onComplete, 1000); // Wait for fade out
-    }, 4500);
+      setTimeout(onComplete, 600); // Faster fade out
+    }, 2800);
     return () => clearTimeout(timer);
   }, [onComplete]);
 

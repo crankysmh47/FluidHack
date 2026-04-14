@@ -16,7 +16,7 @@ export const TacticalMiniMap: React.FC = () => {
   ];
 
   return (
-    <div className="w-full h-[120px] relative bg-emerald-950/20 rounded-lg overflow-hidden border border-emerald-900/20 group">
+    <div className="w-full h-[120px] relative bg-emerald-950/20 rounded-lg border border-emerald-900/20 group">
       {/* Wireframe Grid */}
       <svg className="absolute inset-0 w-full h-full opacity-20">
         <defs>
