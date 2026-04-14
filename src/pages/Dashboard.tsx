@@ -25,13 +25,13 @@ export const Dashboard: React.FC = () => {
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
 
-  // Parallax Background offsets
-  const parallaxX = useTransform(mouseX, [-1000, 1000], [50, -50]);
-  const parallaxY = useTransform(mouseY, [-1000, 1000], [50, -50]);
+  // Parallax Background offsets (adjusted for absolute coordinates)
+  const parallaxX = useTransform(mouseX, [0, window.innerWidth], [50, -50]);
+  const parallaxY = useTransform(mouseY, [0, window.innerHeight], [50, -50]);
 
   // Elite 3D Tilt Shell
-  const rotateX = useSpring(useTransform(mouseY, [-500, 500], [3, -3]), { stiffness: 40, damping: 20 });
-  const rotateY = useSpring(useTransform(mouseX, [-500, 500], [-3, 3]), { stiffness: 40, damping: 20 });
+  const rotateY = useSpring(useTransform(mouseX, [0, window.innerWidth], [-3, 3]), { stiffness: 40, damping: 20 });
+  const rotateX = useSpring(useTransform(mouseY, [0, window.innerHeight], [3, -3]), { stiffness: 40, damping: 20 });
 
   // System Shock Impact flash
   useEffect(() => {
@@ -48,10 +48,8 @@ export const Dashboard: React.FC = () => {
 
   const handleMouseMove = (e: MouseEvent) => {
     const { clientX, clientY } = e;
-    const x = clientX - window.innerWidth / 2;
-    const y = clientY - window.innerHeight / 2;
-    mouseX.set(x);
-    mouseY.set(y);
+    mouseX.set(clientX);
+    mouseY.set(clientY);
   };
 
   useEffect(() => {
@@ -62,60 +60,29 @@ export const Dashboard: React.FC = () => {
   return (
     <div 
       className={cn(
-        "relative w-screen h-screen overflow-hidden bg-[#050A08] perspective-1000 select-none cursor-none transition-all duration-300",
+        "relative w-screen h-screen overflow-hidden bg-[#050A08] perspective-1000 select-none transition-all duration-300",
         impact ? "brightness-200 scale-[1.01] contrast-150" : "brightness-100 scale-100 contrast-100"
       )}
-      style={{ filter: "url(#thermal-stress)" }}
     >
       <BootOverlay onComplete={() => setIsBooted(true)} />
       <ClickSpark />
-      <DigitalWeather />
-      <ThermalFilter />
-
-      {/* 🖱️ Elite Tactical Crosshair (Zero-Lag Sync) */}
-      <motion.div 
-        className="fixed top-0 left-0 w-10 h-10 pointer-events-none z-[1000] mix-blend-difference"
-        style={{ 
-            x: mouseX, 
-            y: mouseY,
-            translateX: "-50%",
-            translateY: "-50%"
-        }}
-      >
-        <div className="relative w-full h-full flex items-center justify-center">
-            <div className="absolute w-full h-[1px] bg-emerald-400" />
-            <div className="absolute h-full w-[1px] bg-emerald-400" />
-            <motion.div 
-                animate={{ rotate: 360, scale: [1, 1.2, 1] }}
-                transition={{ repeat: Infinity, duration: 4 }}
-                className="absolute w-6 h-6 border border-emerald-400/30 rounded-full"
-            />
-            <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full shadow-[0_0_10px_rgba(16,185,129,1)]" />
+      
+      {/* 🌌 Atmospheric Layers (Filtered) */}
+      <div style={{ filter: "url(#thermal-stress)" }} className="absolute inset-0 pointer-events-none">
+        <DigitalWeather />
+        <ThermalFilter />
+        
+        {/* 🌌 Elite Background Layers */}
+        <div className="absolute inset-0 z-0">
+           {/* Parallax Tactical Grid */}
+           <motion.div 
+              style={{ x: parallaxX, y: parallaxY }}
+              className="absolute inset-[-150px] bg-[linear-gradient(rgba(16,185,129,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(16,185,129,0.02)_1px,transparent_1px)] bg-[size:80px_80px]"
+           />
         </div>
-      </motion.div>
-
-      {/* 🌌 Elite Background Layers */}
-      <div className="absolute inset-0 z-0 pointer-events-none">
-         {/* Parallax Tactical Grid */}
-         <motion.div 
-            style={{ x: parallaxX, y: parallaxY }}
-            className="absolute inset-[-150px] bg-[linear-gradient(rgba(16,185,129,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(16,185,129,0.02)_1px,transparent_1px)] bg-[size:80px_80px]"
-         />
-
-         {/* Chromatic Flare Overlay during Impact */}
-         <AnimatePresence>
-            {impact && (
-                <motion.div 
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 0.15 }}
-                    exit={{ opacity: 0 }}
-                    className="absolute inset-0 bg-gradient-to-tr from-red-500 via-transparent to-emerald-500 z-50 mix-blend-overlay"
-                />
-            )}
-         </AnimatePresence>
       </div>
 
-      {/* 🖼️ HUD CONTENT CONTAINER */}
+      {/* 🖼️ HUD CONTENT CONTAINER (Filtered) */}
       <Suspense fallback={null}>
         <motion.div 
           initial={{ opacity: 0 }}
@@ -124,8 +91,9 @@ export const Dashboard: React.FC = () => {
               "relative w-full h-full flex flex-col z-10 p-6 gap-6",
               isExecuting && "animate-jitter"
           )}
-          style={{ rotateX, rotateY, transformStyle: "preserve-3d" }}
+          style={{ rotateX, rotateY, transformStyle: "preserve-3d", filter: "url(#thermal-stress)" }}
         >
+          {/* ... existing nodes ... */}
           {/* ROW 1: Execution Pipeline */}
           <motion.div 
             initial={{ y: -50, opacity: 0 }}
@@ -187,6 +155,28 @@ export const Dashboard: React.FC = () => {
           </motion.div>
         </motion.div>
       </Suspense>
+
+      {/* 🖱️ Elite Tactical Crosshair (ABSOLUTE SYNC - OUTSIDE FILTERS) */}
+      <motion.div 
+        className="fixed top-0 left-0 w-10 h-10 pointer-events-none z-[2000] mix-blend-difference"
+        style={{ 
+            x: mouseX, 
+            y: mouseY,
+            translateX: "-50%",
+            translateY: "-50%"
+        }}
+      >
+        <div className="relative w-full h-full flex items-center justify-center">
+            <div className="absolute w-full h-[1px] bg-emerald-400" />
+            <div className="absolute h-full w-[1px] bg-emerald-400" />
+            <motion.div 
+                animate={{ rotate: 360, scale: [1, 1.2, 1] }}
+                transition={{ repeat: Infinity, duration: 4 }}
+                className="absolute w-6 h-6 border border-emerald-400/30 rounded-full"
+            />
+            <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full shadow-[0_0_10px_rgba(16,185,129,1)]" />
+        </div>
+      </motion.div>
 
       <style dangerouslySetInnerHTML={{ __html: `
         @keyframes jitter {

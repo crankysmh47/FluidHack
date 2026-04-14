@@ -46,7 +46,7 @@ export const BottomControlPanel: React.FC = () => {
                 step="0.1"
                 value={simulationFactor}
                 onChange={(e) => setSimulationFactor(parseFloat(e.target.value))}
-                className="w-full appearance-none bg-emerald-950/40 h-[2px] rounded-full cursor-none outline-none accent-emerald-500 hover:accent-emerald-400 transition-all"
+                className="w-full appearance-none bg-emerald-950/40 h-[2px] rounded-full cursor-pointer outline-none accent-emerald-500 hover:accent-emerald-400 transition-all"
              />
              {/* Liquid Fill Progress */}
              <motion.div 
