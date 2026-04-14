@@ -1,7 +1,12 @@
 import os
+import sys
 import time
 from supabase import create_client
 from dotenv import load_dotenv
+
+# Allow running from glue/ directory
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from wirefluid_encoder import encode_wirefluid_payload
 
 load_dotenv()
