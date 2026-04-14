@@ -3,10 +3,10 @@ import { useCarbonStore } from '../store/useCarbonStore';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
-const API_BASE = 'http://localhost:5000';
+const API_BASE = `${window.location.protocol}//${window.location.hostname}:5000`;
 
 const Sandbox: React.FC = () => {
-  const { user, forceBuy, uiMessage, setUiMessage } = useCarbonStore();
+  const { user, forceBuy, uiMessage, setUiMessage, accelerateAudit } = useCarbonStore();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -136,6 +136,28 @@ const Sandbox: React.FC = () => {
             </div>
           </div>
 
+          {/* Sentinel Lifecycle Control Card */}
+          <div className="md:col-span-12 bg-surface-container-lowest biological-shadow rounded-xl p-8 mb-8 border border-outline-variant/5">
+            <div className="flex items-center gap-4 mb-6">
+              <span className="material-symbols-outlined text-emerald-600 text-3xl">avg_time</span>
+              <h3 className="font-headline text-2xl font-light text-on-surface">Sentinel Lifecycle Control</h3>
+            </div>
+            <div className="flex flex-col md:flex-row gap-6 items-center">
+              <p className="text-on-surface-variant font-body leading-relaxed flex-1">
+                Manually accelerate the autonomous audit cycle. This 'time-warp' allows you to demonstrate governance settlements without waiting for real-world intervals.
+              </p>
+              <button 
+                onClick={() => {
+                  accelerateAudit(5);
+                  setUiMessage("Time-Warp active: Sentinel Audit accelerated by 5 minutes.", "success");
+                }}
+                className="bg-emerald-600 text-white px-8 py-4 rounded-md font-headline font-bold hover:brightness-110 transition-all active:scale-95 shadow-lg whitespace-nowrap"
+              >
+                Fast Forward Audit (+5m)
+              </button>
+            </div>
+          </div>
+
           {/* Transaction Simulator Card */}
           <div className="md:col-span-12 bg-surface-container-lowest biological-shadow rounded-xl overflow-hidden border border-outline-variant/5">
             <div className="grid grid-cols-1 lg:grid-cols-2">
@@ -206,15 +228,15 @@ const Sandbox: React.FC = () => {
           <span className="material-symbols-outlined mb-1">dashboard</span>
           <span className="font-headline text-[10px] tracking-wide uppercase">Overview</span>
         </a>
-        <a className="flex flex-col items-center justify-center text-slate-400 opacity-60 hover:text-emerald-500 transition-colors" href="#">
+        <a onClick={() => navigate('/markets')} className="cursor-pointer flex flex-col items-center justify-center text-slate-400 opacity-60 hover:text-emerald-500 transition-colors">
           <span className="material-symbols-outlined mb-1">eco</span>
           <span className="font-headline text-[10px] tracking-wide uppercase">Markets</span>
         </a>
-        <a className="flex flex-col items-center justify-center text-emerald-600 after:content-[''] after:w-1 after:h-1 after:bg-emerald-500 after:rounded-full after:mt-1 transform translate-y-[-2px] duration-300" href="#">
+        <a className="flex flex-col items-center justify-center text-emerald-600 after:content-[''] after:w-1 after:h-1 after:bg-emerald-500 after:rounded-full after:mt-1 transform translate-y-[-2px] duration-300 pointer-events-none">
           <span className="material-symbols-outlined mb-1">psychology</span>
           <span className="font-headline text-[10px] tracking-wide uppercase">Agent</span>
         </a>
-        <a className="flex flex-col items-center justify-center text-slate-400 opacity-60 hover:text-emerald-500 transition-colors" href="#">
+        <a onClick={() => navigate('/history')} className="cursor-pointer flex flex-col items-center justify-center text-slate-400 opacity-60 hover:text-emerald-500 transition-colors">
           <span className="material-symbols-outlined mb-1">receipt_long</span>
           <span className="font-headline text-[10px] tracking-wide uppercase">History</span>
         </a>

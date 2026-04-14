@@ -58,6 +58,7 @@ from user_control import (
     check_budget_gate,
     get_user_ledger,
 )
+from agent_sessions import start_session, end_session, get_session_history
 from tx_log import read_all_txs, get_total_stats, get_hashes_only
 
 # ── App ───────────────────────────────────────────────────────────────────────
@@ -337,13 +338,37 @@ def set_config(user_id: str):
       - display_name: str
     """
     body = request.get_json(silent=True) or {}
-    allowed = {"budget_usd", "max_tx_usd", "authorized_tx_count", "auto_execute", "spectatorless_mode", "display_name"}
+    allowed = {"budget_usd", "max_tx_usd", "authorized_tx_count", "auto_execute", "spectatorless_mode", "display_name", "is_active"}
     fields = {k: v for k, v in body.items() if k in allowed}
 
     if not fields:
         return _err("No valid fields provided. Allowed: " + ", ".join(allowed))
 
+    # If a new authorization is being set (budget or tx_count provided)
+    if "budget_usd" in fields or "authorized_tx_count" in fields:
+        # Reset spent statistics for the new session
+        fields["spent_usd"] = 0.0
+        fields["tx_count"] = 0
+        
     updated = update_user_config(user_id, **fields)
+    
+    # Session Management
+    if "budget_usd" in fields or "authorized_tx_count" in fields:
+        try:
+            # Ensure updated is a dict
+            config = updated if isinstance(updated, dict) else {}
+            
+            # End any current active session first
+            end_session(user_id, config.get("spent_usd", 0.0), config.get("tx_count", 0), status="OVERWRITTEN")
+            
+            # Start the new session - use updated config if field not in request
+            new_budget = fields.get("budget_usd", config.get("budget_usd", 50.0))
+            new_tx_limit = fields.get("authorized_tx_count", config.get("authorized_tx_count", 50))
+            
+            start_session(user_id, new_budget, new_tx_limit)
+        except Exception as e:
+            print(f"[API] [!] Session tracking failed: {e}")
+            
     return _ok(updated)
 
 
@@ -360,12 +385,20 @@ def user_offsets(user_id: str):
     return _ok(get_total_offset_stats(user_id))
 
 
+@app.route("/user/<user_id>/agent-history", methods=["GET"])
+def user_agent_history(user_id: str):
+    """Return the professional history of all agents deployed for this user."""
+    return _ok(get_session_history(user_id))
+
+
 # ── Agent Control ─────────────────────────────────────────────────────────────
 
 @app.route("/user/<user_id>/revoke", methods=["POST"])
 def revoke(user_id: str):
     """Immediately revoke (halt) the AI agent for this user."""
     updated = revoke_agent(user_id)
+    # End the session as REVOKED
+    end_session(user_id, updated.get("spent_usd", 0.0), updated.get("tx_count", 0), status="REVOKED")
     return _ok({"message": f"Agent revoked for {user_id}", "config": updated})
 
 
@@ -428,13 +461,16 @@ def force_buy_immediate(user_id: str):
         from config import DEFAULT_MATCH
 
         agent = CarbonSentinelAgent(DEFAULT_MATCH.copy(), user_id=user_id)
+        # Force-buy cycle is specifically for manual overrides
         result = agent.force_buy_cycle(
             amount_usd=float(amount),
             match_id=body.get("match_id"),
         )
         if result is None:
             return _err("Force-buy blocked (agent revoked or execution failed).", 403)
-        return _ok({"message": "Force-buy executed.", "result": result})
+        
+        status_code = 200 if result.get("status") == "success" else 500
+        return _ok({"message": "Force-buy execution attempt complete.", "result": result}, status_code)
     except Exception as e:
         return _err(f"Force-buy failed: {e}", 500)
 
@@ -455,13 +491,19 @@ def budget_check(user_id: str):
 
     allowed, reason = check_budget_gate(user_id, amount)
     cfg = get_user_config(user_id)
+    budget = cfg.get("budget_usd", 0)
+    spent = cfg.get("spent_usd", 0)
+    remaining = budget - spent
+    
     return _ok({
         "allowed": allowed,
         "reason": reason,
-        "budget_usd": cfg.get("budget_usd"),
-        "spent_usd": cfg.get("spent_usd"),
+        "budget_usd": budget,
+        "spent_usd": spent,
+        "remaining_usd": max(0.0, float(round(remaining, 4))),
         "max_tx_usd": cfg.get("max_tx_usd"),
-        "remaining_usd": round(cfg.get("budget_usd", 0) - cfg.get("spent_usd", 0), 4),
+        "tx_count": cfg.get("tx_count", 0),
+        "authorized_tx_count": cfg.get("authorized_tx_count", 50)
     })
 
 

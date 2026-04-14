@@ -5,7 +5,7 @@ import { useWeb3Modal } from '@web3modal/wagmi/react';
 import { useAccount, useSignMessage } from 'wagmi';
 
 const Dashboard: React.FC = () => {
-  const { user, remainingBudget, totalOffset, logs, fetchStats, fetchLedger, revokeAgent, forceBuy, logout, uiMessage, setUiMessage, isAgentActive, isDemoMode, toggleDemoMode, liveFeed, fetchLiveFeed, isPaymentAuthorized, authorizePayment, isLoading } = useCarbonStore();
+  const { user, remainingBudget, totalOffset, logs, fetchStats, fetchLedger, revokeAgent, forceBuy, logout, uiMessage, setUiMessage, isAgentActive, isDemoMode, toggleDemoMode, liveFeed, fetchLiveFeed, isPaymentAuthorized, authorizePayment, isLoading, auditOffsetMinutes } = useCarbonStore();
   const navigate = useNavigate();
   const { open } = useWeb3Modal();
   const { isConnected, address } = useAccount();
@@ -21,12 +21,21 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     const timer = setInterval(() => {
       const now = new Date();
-      const minutes = 29 - (now.getMinutes() % 30);
-      const seconds = 59 - now.getSeconds();
+      let minutes = 29 - (now.getMinutes() % 30);
+      let seconds = 59 - now.getSeconds();
+      
+      // Apply manual demo offset
+      minutes -= auditOffsetMinutes;
+      
+      if (minutes < 0) {
+        minutes = 0;
+        seconds = 0;
+      }
+      
       setCountdown(`${minutes}m ${seconds.toString().padStart(2, '0')}s`);
     }, 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [auditOffsetMinutes]);
 
   const handleAuthorize = async () => {
     try {
@@ -177,7 +186,7 @@ const Dashboard: React.FC = () => {
                   </div>
                   <div className="bg-surface-container-lowest/50 rounded-2xl p-4 flex flex-col gap-2">
                     <div className="flex justify-between text-xs">
-                      <span className="text-on-surface-variant">Predicted Offset Impact</span>
+                      <span className="text-on-surface-variant">Forecasted Environmental Mitigation</span>
                       <span className="text-primary font-bold">120 kg CO2e</span>
                     </div>
                     <div className="w-full bg-outline-variant/20 h-1 rounded-full overflow-hidden">
@@ -185,7 +194,7 @@ const Dashboard: React.FC = () => {
                     </div>
                   </div>
                   <div className="mt-6 text-center">
-                    <p className="text-[10px] text-on-surface-variant uppercase tracking-widest">Next Auto-Buy Trigger</p>
+                    <p className="text-[10px] text-on-surface-variant uppercase tracking-widest">Sentinel Intelligence Cue</p>
                     <p className="font-headline font-medium text-on-surface">Wicket in 15th Over</p>
                   </div>
                 </>
@@ -313,30 +322,51 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
         </section>
+
+        {/* Section: Sentinel Control Center */}
+        {isPaymentAuthorized && (
+          <section className="md:col-span-12">
+            <div className="bg-surface-container-low rounded-[2.5rem] p-8 border border-outline-variant/20 biological-shadow">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+                    <span className="material-symbols-outlined">settings_suggest</span>
+                  </div>
+                  <div>
+                    <h3 className="font-headline font-bold text-xl text-on-surface">Protocol Control Center</h3>
+                    <p className="text-xs text-on-surface-variant">Manage your autonomous agent and manual overrides.</p>
+                  </div>
+                </div>
+                
+                <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
+                  <button 
+                    onClick={revokeAgent}
+                    disabled={!isAgentActive}
+                    className={`flex-1 md:flex-none px-8 py-4 rounded-2xl font-bold font-headline uppercase text-sm tracking-widest transition-all flex items-center justify-center gap-3 ${!isAgentActive ? 'bg-surface-container-highest text-on-surface-variant opacity-50 cursor-not-allowed' : 'bg-error/10 text-error hover:bg-error/20 border border-error/20 active:scale-95'}`}
+                  >
+                    <span className="material-symbols-outlined">{isAgentActive ? 'front_hand' : 'block'}</span>
+                    {isAgentActive ? 'Revoke Agent' : 'Agent Revoked'}
+                  </button>
+                  
+                  <button 
+                    onClick={() => setIsBuyModalOpen(true)}
+                    className="flex-1 md:flex-none bg-primary text-on-primary px-8 py-4 rounded-2xl font-headline font-bold uppercase text-sm tracking-widest shadow-xl flex items-center justify-center gap-3 hover:brightness-110 active:scale-95 transition-all"
+                  >
+                    <span>Force Buy</span>
+                    <span className="material-symbols-outlined">bolt</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
       </main>
 
-      {/* Contextual Actions Overlay */}
-      <div className="fixed bottom-24 right-6 flex flex-col items-end gap-3 pointer-events-none">
-        <button 
-          onClick={revokeAgent}
-          disabled={!isAgentActive}
-          className={`pointer-events-auto bg-surface-container-low px-6 py-4 rounded-full shadow-lg border border-outline-variant/40 flex items-center gap-3 transition-all ${!isAgentActive ? 'opacity-50 line-through text-on-surface-variant' : 'text-error hover:bg-error/10 active:scale-95'}`}
-        >
-          <span className="material-symbols-outlined">{isAgentActive ? 'front_hand' : 'block'}</span>
-          <span className="font-bold font-headline uppercase text-sm tracking-widest">{isAgentActive ? 'Revoke Agent' : 'Agent Revoked'}</span>
-        </button>
-        <button 
-          onClick={() => setIsBuyModalOpen(true)}
-          className="pointer-events-auto bg-primary-container text-on-primary-container px-6 py-4 rounded-full shadow-2xl flex items-center gap-3 active:scale-95 duration-200 ease-out"
-        >
-          <span className="font-headline font-extrabold tracking-tight">FORCE BUY</span>
-          <span className="material-symbols-outlined">bolt</span>
-        </button>
-      </div>
+      {/* Contextual Actions Overlay - Removed to avoid shadowing */}
 
       {/* BottomNavBar */}
       <nav className="fixed bottom-0 left-0 w-full z-40 flex justify-around items-center px-6 pb-8 pt-4 bg-slate-50/80 dark:bg-slate-900/80 backdrop-blur-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.06)] dark:shadow-none border-t border-outline-variant/20 rounded-t-3xl">
-        <a className="flex flex-col items-center justify-center text-emerald-600 after:content-[''] after:w-1 after:h-1 after:bg-emerald-500 after:rounded-full after:mt-1 transform translate-y-[-2px] duration-300" href="#">
+        <a className="flex flex-col items-center justify-center text-emerald-600 after:content-[''] after:w-1 after:h-1 after:bg-emerald-500 after:rounded-full after:mt-1 transform translate-y-[-2px] duration-300 pointer-events-none">
           <span className="material-symbols-outlined mb-1">dashboard</span>
           <span className="font-headline text-[10px] tracking-wide uppercase">Overview</span>
         </a>

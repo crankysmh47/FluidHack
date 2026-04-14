@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import axios from 'axios';
 
-const API_BASE = 'http://localhost:5000';
+const API_BASE = `${window.location.protocol}//${window.location.hostname}:5000`;
 
 export interface SystemLog {
   id: string;
@@ -26,6 +26,7 @@ interface CarbonStore {
   // Logs
   logs: SystemLog[];
   fullHistory: any[];
+  agentHistory: any[];
   
   // Tx Limits (Preimages)
   authorizedTxCount: number;
@@ -41,6 +42,7 @@ interface CarbonStore {
   fetchStats: () => Promise<void>;
   fetchLedger: () => Promise<void>;
   fetchFullHistory: () => Promise<void>;
+  fetchAgentHistory: () => Promise<void>;
   revokeAgent: () => Promise<void>;
   forceBuy: (amount: number) => Promise<void>;
   
@@ -54,11 +56,15 @@ interface CarbonStore {
   
   // Web3 Authorization
   isPaymentAuthorized: boolean;
-  authorizePayment: (budget: number) => Promise<boolean>;
+  authorizePayment: (budget: number, txLimit?: number) => Promise<boolean>;
 
   uiMessage: { text: string; type: 'success' | 'error' } | null;
   setUiMessage: (text: string, type: 'success' | 'error') => void;
   clearUiMessage: () => void;
+
+  // Demo Control
+  auditOffsetMinutes: number;
+  accelerateAudit: (mins: number) => void;
 }
 
 export const useCarbonStore = create<CarbonStore>()(
@@ -69,6 +75,7 @@ export const useCarbonStore = create<CarbonStore>()(
       totalOffset: 0,
       logs: [],
       fullHistory: [],
+      agentHistory: [],
       authorizedTxCount: 0,
       remainingTxCount: 0,
       isAgentActive: true,
@@ -77,8 +84,13 @@ export const useCarbonStore = create<CarbonStore>()(
       isDemoMode: false,
       liveFeed: null,
       isPaymentAuthorized: false,
+      auditOffsetMinutes: 0,
 
       toggleDemoMode: () => set((state) => ({ isDemoMode: !state.isDemoMode })),
+
+      accelerateAudit: (mins: number) => set((state) => ({ 
+        auditOffsetMinutes: state.auditOffsetMinutes + mins 
+      })),
 
       authorizePayment: async (budget: number, txLimit: number = 20) => {
         const { user } = get();
@@ -120,6 +132,8 @@ export const useCarbonStore = create<CarbonStore>()(
         }
       },
       uiMessage: null,
+      auditOffsetMinutes: 0,
+      accelerateAudit: (mins) => set((state) => ({ auditOffsetMinutes: state.auditOffsetMinutes + mins })),
 
       setUiMessage: (text, type) => {
         set({ uiMessage: { text, type } });
@@ -185,6 +199,14 @@ export const useCarbonStore = create<CarbonStore>()(
               authorizedTxCount: res.data.data.authorized_tx_count || 0,
               remainingTxCount: (res.data.data.authorized_tx_count || 0) - (res.data.data.tx_count || 0)
             });
+
+            // AUTO-TERMINATION LOGIC
+            // If the agent is exhausted, de-authorize locally to trigger the setup overlay
+            const { remainingBudget, remainingTxCount, isPaymentAuthorized } = get();
+            if (isPaymentAuthorized && (remainingBudget <= 0 || remainingTxCount <= 0)) {
+              set({ isPaymentAuthorized: false, isAgentActive: false });
+              get().setUiMessage("Sentinel Protocol exhausted. Please authorize a new budget to continue monitoring.", "error");
+            }
           }
         } catch (err) {
           console.warn("API Offline or Unreachable:", err);
@@ -234,6 +256,19 @@ export const useCarbonStore = create<CarbonStore>()(
         } catch (err) {
           console.error("Full History Fetch Error:", err);
           get().setUiMessage("Failed to fetch full history from Supabase.", "error");
+        }
+      },
+
+      fetchAgentHistory: async () => {
+        const { user } = get();
+        if (!user) return;
+        try {
+          const res = await axios.get(`${API_BASE}/user/${user.id}/agent-history`);
+          if (res.data.ok) {
+            set({ agentHistory: res.data.data });
+          }
+        } catch (err) {
+          console.error("Agent History Fetch Error:", err);
         }
       },
 

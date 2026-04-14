@@ -22,6 +22,7 @@ from data_sources.sports_api import SportsAPIClient
 from data_sources.weather_api import WeatherAPIClient
 from attribution_engine import AttributionEngine
 from defillama_scraper import DefiLlamaScraper
+from agent_sessions import end_session
 try:
     from supabase import create_client, Client
 except ImportError:
@@ -188,6 +189,15 @@ class CarbonSentinelAgent:
         if not allowed:
             print(f"\n[Agent] 🚫 Autonomous execution BLOCKED: {reason}")
             self._log_decision(decision)
+            
+            # If blocked due to budget/count, signal end of session
+            cfg = get_user_config(self.user_id)
+            end_session(
+                self.user_id, 
+                final_spend=cfg.get("spent_usd", 0.0), 
+                final_tx_count=cfg.get("tx_count", 0),
+                status="EXHAUSTED"
+            )
             return decision  # Return decision for visibility but don't execute
 
         # ── Log decision and execute ──────────────────────────────────────────

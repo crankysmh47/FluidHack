@@ -33,7 +33,7 @@ def _get_supabase():
         from supabase import create_client
         return create_client(url, key)
     except Exception as e:
-        print(f"[UserControl] ⚠️  Supabase init failed: {e}")
+        print(f"[UserControl] [!] Supabase init failed: {e}")
         return None
 
 
@@ -71,7 +71,7 @@ def get_user_config(user_id: str) -> dict:
         # Auto-provision defaults for new user
         return create_user_config(user_id)
     except Exception as e:
-        print(f"[UserControl] ⚠️  get_user_config failed: {e}")
+        print(f"[UserControl] [!] get_user_config failed: {e}")
         return {**DEFAULT_CONFIG, "user_id": user_id}
 
 
@@ -86,9 +86,9 @@ def create_user_config(user_id: str, **overrides) -> dict:
         return config
     try:
         sb.table("agent_config").upsert(config, on_conflict="user_id").execute()
-        print(f"[UserControl] ✅ Config provisioned for {user_id}")
+        print(f"[UserControl] [V] Config provisioned for {user_id}")
     except Exception as e:
-        print(f"[UserControl] ⚠️  create_user_config failed: {e}")
+        print(f"[UserControl] [!] create_user_config failed: {e}")
     return config
 
 
@@ -114,9 +114,9 @@ def update_user_config(user_id: str, **fields) -> dict:
         sb.table("agent_config").upsert(
             {"user_id": user_id, **fields}, on_conflict="user_id"
         ).execute()
-        print(f"[UserControl] ✅ Config updated for {user_id}: {list(fields.keys())}")
+        print(f"[UserControl] [V] Config updated for {user_id}: {list(fields.keys())}")
     except Exception as e:
-        print(f"[UserControl] ⚠️  update_user_config failed: {e}")
+        print(f"[UserControl] [!] update_user_config failed: {e}")
 
     return get_user_config(user_id)
 
@@ -127,13 +127,13 @@ def revoke_agent(user_id: str) -> dict:
     Sets is_active=False and auto_execute=False.
     The agent checks this flag before every cycle and will stop.
     """
-    print(f"[UserControl] 🛑 Revoking agent for user: {user_id}")
+    print(f"[UserControl] [X] Revoking agent for user: {user_id}")
     return update_user_config(user_id, is_active=False, auto_execute=False)
 
 
 def restore_agent(user_id: str) -> dict:
     """Re-enable the agent after a revoke."""
-    print(f"[UserControl] ✅ Restoring agent for user: {user_id}")
+    print(f"[UserControl] [V] Restoring agent for user: {user_id}")
     return update_user_config(user_id, is_active=True, auto_execute=True)
 
 
@@ -152,15 +152,20 @@ def record_spend(user_id: str, amount_usd: float) -> dict:
         new_tx_count = int(config.get("tx_count", 0) + 1)
         return update_user_config(user_id, spent_usd=new_spent, tx_count=new_tx_count)
     except Exception as e:
-        print(f"[UserControl] ⚠️  record_spend failed: {e}")
+        print(f"[UserControl] [!] record_spend failed: {e}")
         return get_user_config(user_id)
 
 
 # ── Budget gate ───────────────────────────────────────────────────────────────
 
-def check_budget_gate(user_id: str, proposed_spend_usd: float) -> tuple[bool, str]:
+def check_budget_gate(user_id: str, proposed_spend_usd: float, bypass_limits: bool = False) -> tuple[bool, str]:
     """
     Check whether a proposed spend is within the user's configured limits.
+
+    Args:
+        user_id: The ID of the user.
+        proposed_spend_usd: Amount to check.
+        bypass_limits: If True, skip budget/tx_count checks (used for manual UI overrides).
 
     Returns:
         (allowed: bool, reason: str)
@@ -176,6 +181,9 @@ def check_budget_gate(user_id: str, proposed_spend_usd: float) -> tuple[bool, st
     max_tx = config.get("max_tx_usd", 5.0)
     if proposed_spend_usd > max_tx:
         return False, f"Proposed spend ${proposed_spend_usd:.4f} exceeds per-tx limit ${max_tx:.2f}."
+
+    if bypass_limits:
+        return True, "OK (Bypass Active)"
 
     budget = config.get("budget_usd", 50.0)
     spent = config.get("spent_usd", 0.0)
@@ -219,9 +227,9 @@ def request_force_buy(user_id: str, amount_usd: float, match_id: str = None) -> 
         try:
             resp = sb.table("force_buys").insert(row).execute()
             row = resp.data[0] if resp.data else row
-            print(f"[UserControl] ✅ Force-buy requested: ${amount_usd:.2f} for {user_id}")
+            print(f"[UserControl] [V] Force-buy requested: ${amount_usd:.2f} for {user_id}")
         except Exception as e:
-            print(f"[UserControl] ⚠️  request_force_buy DB write failed: {e}")
+            print(f"[UserControl] [!] request_force_buy DB write failed: {e}")
     else:
         print(f"[UserControl] Force-buy queued locally (no Supabase): ${amount_usd:.2f}")
 
@@ -240,7 +248,7 @@ def get_pending_force_buys(user_id: str = None) -> list[dict]:
         resp = q.order("created_at", desc=False).execute()
         return resp.data or []
     except Exception as e:
-        print(f"[UserControl] ⚠️  get_pending_force_buys failed: {e}")
+        print(f"[UserControl] [!] get_pending_force_buys failed: {e}")
         return []
 
 
@@ -256,7 +264,7 @@ def mark_force_buy_executed(force_buy_id: int, tx_hash: str):
             "executed_at": datetime.now(timezone.utc).isoformat(),
         }).eq("id", force_buy_id).execute()
     except Exception as e:
-        print(f"[UserControl] ⚠️  mark_force_buy_executed failed: {e}")
+        print(f"[UserControl] [!] mark_force_buy_executed failed: {e}")
 
 
 def mark_force_buy_failed(force_buy_id: int, error: str):
@@ -270,7 +278,7 @@ def mark_force_buy_failed(force_buy_id: int, error: str):
             "error_message": str(error),
         }).eq("id", force_buy_id).execute()
     except Exception as e:
-        print(f"[UserControl] ⚠️  mark_force_buy_failed: {e}")
+        print(f"[UserControl] [!] mark_force_buy_failed: {e}")
 
 
 # ── Offset Stats ──────────────────────────────────────────────────────────────
@@ -305,7 +313,7 @@ def get_total_offset_stats(user_id: str = None) -> dict:
             "last_purchase_at": None,
         }
     except Exception as e:
-        print(f"[UserControl] ⚠️  get_total_offset_stats failed: {e}")
+        print(f"[UserControl] [!] get_total_offset_stats failed: {e}")
         return {}
 
 
@@ -323,7 +331,7 @@ def get_user_ledger(user_id: str, limit: int = 50) -> list[dict]:
                  .execute()
         return resp.data or []
     except Exception as e:
-        print(f"[UserControl] ⚠️  get_user_ledger failed: {e}")
+        print(f"[UserControl] [!] get_user_ledger failed: {e}")
         return []
 
 
