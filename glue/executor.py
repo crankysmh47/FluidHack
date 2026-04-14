@@ -26,7 +26,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 load_dotenv(override=True)
 
 
-def run_execution(decision: dict) -> dict:
+def run_execution(decision: dict, user_id: str = "system") -> dict:
     """
     Execute a carbon offset decision autonomously.
 
@@ -34,6 +34,7 @@ def run_execution(decision: dict) -> dict:
         decision: Full decision dict from CarbonSentinelAgent._build_decision()
                   Must include: match_id, calculated_footprint_kg, target_token,
                                 source_chain, dest_chain, amount_usdc_wei, amount_usd
+        user_id:  User wallet address / auth UID (for local TX log)
 
     Returns:
         Execution result dict with tx_hash, status, etc.
@@ -41,6 +42,7 @@ def run_execution(decision: dict) -> dict:
     from preimage_manager import get_next_preimage
     from wirefluid_encoder import encode_wirefluid_payload
     from contract_caller import call_hash_vault
+    from tx_log import append_tx  # local JSONL log
 
     match_id = decision.get("match_id", "UNKNOWN")
     print(f"\n{'='*60}")
@@ -78,8 +80,20 @@ def run_execution(decision: dict) -> dict:
             
     except Exception as e:
         print(f"[Executor] 🚨 Critical failure during contract call: {e}")
-        # In case of broadcast failure but potentially successful landing (timeout),
-        # we don't mark used here, but the next loop will see it on-chain anyway.
+        # Log the failed attempt too so we have a forensic trail
+        append_tx(
+            tx_hash="",
+            match_id=match_id,
+            user_id=user_id,
+            footprint_kg=decision.get("calculated_footprint_kg"),
+            amount_usd=decision.get("amount_usd"),
+            token_symbol=decision.get("metadata", {}).get("token_symbol"),
+            dest_chain=decision.get("dest_chain"),
+            status="failed",
+            source=decision.get("metadata", {}).get("source", "agent"),
+            preimage_index=idx,
+            extra={"error": str(e)},
+        )
         raise
 
     # Enrich result
@@ -88,8 +102,24 @@ def run_execution(decision: dict) -> dict:
     result["footprint_kg"] = decision.get("calculated_footprint_kg", 0)
     result["amount_usd"] = decision.get("amount_usd", 0)
     result["token_symbol"] = decision.get("metadata", {}).get("token_symbol", "")
+    result["user_id"] = user_id
 
-    # ── Step 4: Log to Supabase offset_ledger ────────────────────────────────
+    # ── Step 4: Write TX hash to local log (always, before Supabase) ──────────
+    append_tx(
+        tx_hash=result.get("tx_hash", ""),
+        match_id=match_id,
+        user_id=user_id,
+        footprint_kg=result["footprint_kg"],
+        amount_usd=result["amount_usd"],
+        token_symbol=result["token_symbol"],
+        dest_chain=decision.get("dest_chain"),
+        status=result["status"],
+        source=decision.get("metadata", {}).get("source", "agent"),
+        preimage_index=idx,
+        explorer_url=result.get("explorer_url"),
+    )
+
+    # ── Step 5: Log to Supabase offset_ledger ────────────────────────────────
     _log_to_ledger(decision, result)
 
     # ── Summary ───────────────────────────────────────────────────────────────

@@ -40,6 +40,7 @@ STADIUMS = {
         "lon": 67.0936,
         "zone": "PK",  # Pakistan zone for Electricity Maps
         "capacity_kw": 500,  # Estimated floodlight + operations power draw in kW
+        "max_capacity": 34228,
     },
     "gaddafi_stadium_lahore": {
         "name": "Gaddafi Stadium, Lahore",
@@ -47,6 +48,7 @@ STADIUMS = {
         "lon": 74.3425,
         "zone": "PK",
         "capacity_kw": 450,
+        "max_capacity": 27000,
     },
     "rawalpindi_cricket_stadium": {
         "name": "Rawalpindi Cricket Stadium",
@@ -54,6 +56,7 @@ STADIUMS = {
         "lon": 73.0679,
         "zone": "PK",
         "capacity_kw": 400,
+        "max_capacity": 15000,
     },
 }
 
