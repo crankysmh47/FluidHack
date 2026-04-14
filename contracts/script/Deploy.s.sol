@@ -36,7 +36,7 @@ import "../src/HashVault.sol";
 contract DeployHashVault is Script {
     // ── CONSTANTS ─────────────────────────────────────────────────────────
     // rootHash from glue/hash_chain.json — DO NOT CHANGE
-    bytes32 constant ROOT_HASH = 0xc672c3fd541c90fce03ed58d5954044a13ddac2c9a128a9e5903f16c586f4916;
+    bytes32 constant ROOT_HASH = 0xb45fe053d72ba6bed597ce21fc9835eaaf052dc81bf8e7160a70778386a631e9;
 
     // ⚠️  Set this to the WireFluid router address once provided.
     //     Get it from: https://wirefluidscan.com or support@wirefluid.com

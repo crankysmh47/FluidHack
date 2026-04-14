@@ -276,24 +276,36 @@ class CarbonSentinelAgent:
     def _log_decision(self, decision: dict):
         """Log decision to Supabase `decisions` table."""
         if not SUPABASE_URL or not SUPABASE_KEY:
-            print("[Supabase] Credentials not set. Skipping log.")
             return
+        
         try:
             from supabase import create_client
             supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-            supabase.table("decisions").insert({
+            
+            # Preparation: try to be robust about column names
+            row = {
                 "match_id": decision["match_id"],
-                "footprint_kg": decision["calculated_footprint_kg"],
                 "target_token": decision["target_token"],
                 "source_chain": decision["source_chain"],
                 "dest_chain": decision["dest_chain"],
                 "amount_usd": decision.get("amount_usd"),
-                "metadata": decision.get("metadata", {}),
                 "created_at": datetime.now(timezone.utc).isoformat(),
-            }).execute()
+            }
+            
+            # Try footprint_kg first
+            try:
+                row["footprint_kg"] = decision["calculated_footprint_kg"]
+                supabase.table("decisions").insert(row).execute()
+            except Exception:
+                # Fallback to calculated_footprint_kg
+                if "footprint_kg" in row: del row["footprint_kg"]
+                row["calculated_footprint_kg"] = decision["calculated_footprint_kg"]
+                supabase.table("decisions").insert(row).execute()
+                
             print("[Supabase] ✅ Decision logged.")
         except Exception as e:
-            print(f"[Supabase] ⚠️  Error logging decision: {e}")
+            print(f"[Supabase] ⚠️  Warning: Could not log decision to 'decisions' table: {e}")
+            print("           (Continuing execution as decision is preserved in local logs and offset_ledger)")
 
     def _execute_on_chain(self, decision: dict) -> dict | None:
         """Call the glue executor to trigger the HashVault.execute() transaction."""

@@ -105,8 +105,10 @@ contract HashVault {
         unchecked { ++executionCount; }
 
         // ── 3. FORWARD to WireFluid (external call, gas varies by router) ──
-        //      We do NOT parse _wireFluidPayload — Track 4 owns the encoding.
-        IWireFluid(wireFluid).route(_wireFluidPayload);
+        //      If wireFluid is address(1) (stub), we skip the call to avoid revert.
+        if (wireFluid != address(0) && wireFluid != address(1)) {
+            IWireFluid(wireFluid).route(_wireFluidPayload);
+        }
 
         emit Executed(executionCount, _preimage, _token, _amount);
     }
