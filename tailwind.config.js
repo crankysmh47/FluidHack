@@ -7,44 +7,38 @@ export default {
   theme: {
     extend: {
       colors: {
-        background: '#0a0a1a',
-        panel: 'rgba(10, 10, 25, 0.6)',
+        background: '#050A08',
+        panel: 'rgba(10, 20, 16, 0.6)',
         dark: {
-          900: '#020205',
-          800: '#0a0a1a',
-          700: '#111122',
+          900: '#020504',
+          800: '#050a08',
+          700: '#0a1410',
         },
-        teal: {
-          DEFAULT: '#00ffcc',
-          500: '#00ffcc',
-          400: '#33ffdd',
+        emerald: {
+          DEFAULT: '#10b981',
+          50: '#ecfdf5',
+          100: '#d1fae5',
+          200: '#a7f3d0',
+          300: '#6ee7b7',
+          400: '#34d399',
+          500: '#10b981',
+          600: '#059669',
+          700: '#047857',
+          800: '#065f46',
+          900: '#064e3b',
+          950: '#022c22',
         },
-        cyan: {
-          DEFAULT: '#00ccff',
-          500: '#00ccff',
-          400: '#33ddff',
-        },
-        purple: {
-          DEFAULT: '#b026ff',
-          500: '#b026ff',
-          400: '#c050ff',
-        },
-        neon: {
-          green: '#00ffcc',
-          cyan: '#00ccff',
-          purple: '#b026ff',
-          yellow: '#ffcc00',
-          red: '#ff3366',
-        }
+        "neon-red": '#ef4444',
       },
       fontFamily: {
         sans: ['Inter', 'sans-serif'],
         mono: ['JetBrains Mono', 'monospace'],
       },
       animation: {
-        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+        'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
         'shine': 'shine 2s infinite',
         'scanline': 'scanline 8s linear infinite',
+        'border-beam': 'border-beam 4s infinite linear',
       },
       keyframes: {
         shine: {
@@ -53,6 +47,9 @@ export default {
         scanline: {
           '0%': { transform: 'translateY(-100%)' },
           '100%': { transform: 'translateY(100vh)' },
+        },
+        'border-beam': {
+          '100%': { 'offset-distance': '100%' },
         }
       }
     },
