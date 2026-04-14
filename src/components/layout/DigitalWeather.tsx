@@ -14,6 +14,7 @@ interface Particle {
 export const DigitalWeather: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { simulationFactor, isExecuting } = useCarbonStore();
+  const velocityRef = useRef(1);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -44,7 +45,6 @@ export const DigitalWeather: React.FC = () => {
       }
     };
 
-    const velocityRef = useRef(1);
 
     const animate = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);

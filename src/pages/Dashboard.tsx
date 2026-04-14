@@ -17,7 +17,7 @@ import { ThermalFilter } from '../components/overlays/ThermalFilter';
 import { cn } from '../lib/utils';
 
 export const Dashboard: React.FC = () => {
-  const { initSimulation, isExecuting, simulationFactor } = useCarbonStore();
+  const { initSimulation, isExecuting, simulationFactor, transactionStep } = useCarbonStore();
   const [isBooted, setIsBooted] = useState(false);
   const [impact, setImpact] = useState(false);
   
@@ -38,30 +38,33 @@ export const Dashboard: React.FC = () => {
   const rotateX = useSpring(useTransform(mouseY, [0, window.innerHeight], [2, -2]), { stiffness: 30, damping: 25 });
 
   // System Shock Impact flash & jitter (PHYSICS BASED)
-  const shakeX = useSpring(0, { stiffness: 500, damping: 10 });
-  const shakeY = useSpring(0, { stiffness: 500, damping: 10 });
+  const shakeX = useSpring(0, { stiffness: 400, damping: 30 });
+  const shakeY = useSpring(0, { stiffness: 400, damping: 30 });
 
   useEffect(() => {
+    let interval: any;
+    
     if (isExecuting) {
         setImpact(true);
-        const interval = setInterval(() => {
-            shakeX.set((Math.random() - 0.5) * 8);
-            shakeY.set((Math.random() - 0.5) * 8);
-        }, 30);
-        
-        const timer = setTimeout(() => {
-            setImpact(false);
-            clearInterval(interval);
-            shakeX.set(0);
-            shakeY.set(0);
-        }, 500);
-
-        return () => {
-            clearTimeout(timer);
-            clearInterval(interval);
-        };
+        // Continuous Systemic Vibration during execution
+        interval = setInterval(() => {
+            const baseIntensity = 5;
+            const stepMultiplier = transactionStep >= 0 ? 1 + (transactionStep * 0.2) : 1;
+            const intensity = baseIntensity * stepMultiplier;
+            
+            shakeX.set((Math.random() - 0.5) * intensity);
+            shakeY.set((Math.random() - 0.5) * intensity);
+        }, 40); // Fast enough for "buzz" feel
+    } else {
+        setImpact(false);
+        shakeX.set(0);
+        shakeY.set(0);
     }
-  }, [isExecuting, shakeX, shakeY]);
+
+    return () => {
+        if (interval) clearInterval(interval);
+    };
+  }, [isExecuting, transactionStep, shakeX, shakeY]);
 
   useEffect(() => {
     initSimulation();
@@ -88,10 +91,10 @@ export const Dashboard: React.FC = () => {
       <BootOverlay onComplete={() => setIsBooted(true)} />
       <ClickSpark />
       
-      {/* 🌌 Atmospheric Layers (Filtered) */}
-      <div style={{ filter: "url(#thermal-stress)" }} className="absolute inset-0 pointer-events-none">
+      {/* 🌌 Atmospheric Layers */}
+      <div className="absolute inset-0 pointer-events-none">
         <DigitalWeather />
-        <ThermalFilter />
+        <ThermalFilter impact={impact} />
         
         {/* 🌌 Elite Background Layers */}
         <div className="absolute inset-0 z-0">
@@ -114,8 +117,7 @@ export const Dashboard: React.FC = () => {
               rotateY, 
               x: shakeX, 
               y: shakeY, 
-              transformStyle: "preserve-3d", 
-              filter: "url(#thermal-stress)" 
+              transformStyle: "preserve-3d" 
           }}
         >
           {/* ROW 1: Execution Pipeline */}
