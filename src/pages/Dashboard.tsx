@@ -10,31 +10,35 @@ import { BottomControlPanel } from '../components/controls/BottomControlPanel';
 import { BootOverlay } from '../components/overlays/BootOverlay';
 import { PremiumPanel } from '../components/layout/PremiumPanel';
 import { ClickSpark } from '../components/layout/ClickSpark';
+import { DigitalWeather } from '../components/layout/DigitalWeather';
+import { ThermalFilter } from '../components/overlays/ThermalFilter';
 import { cn } from '../lib/utils';
 
 export const Dashboard: React.FC = () => {
-  const { initSimulation, isExecuting } = useCarbonStore();
+  const { initSimulation, isExecuting, simulationFactor } = useCarbonStore();
   const [isBooted, setIsBooted] = useState(false);
   const [impact, setImpact] = useState(false);
   
-  // Trigger system shock when execution starts
-  useEffect(() => {
-    if (isExecuting) {
-        setImpact(true);
-        const timer = setTimeout(() => setImpact(false), 500);
-        return () => clearTimeout(timer);
-    }
-  }, [isExecuting]);
+  // Mouse tracking
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
 
   // Parallax Background offsets
-  const parallaxX = useTransform(mouseX, [-1000, 1000], [40, -40]);
-  const parallaxY = useTransform(mouseY, [-1000, 1000], [40, -40]);
+  const parallaxX = useTransform(mouseX, [-1000, 1000], [50, -50]);
+  const parallaxY = useTransform(mouseY, [-1000, 1000], [50, -50]);
 
-  // 3D Tilt transforms for the whole layout
-  const rotateX = useSpring(useTransform(mouseY, [-500, 500], [2, -2]), { stiffness: 50, damping: 30 });
-  const rotateY = useSpring(useTransform(mouseX, [-500, 500], [-2, 2]), { stiffness: 50, damping: 30 });
+  // Elite 3D Tilt Shell
+  const rotateX = useSpring(useTransform(mouseY, [-500, 500], [3, -3]), { stiffness: 40, damping: 20 });
+  const rotateY = useSpring(useTransform(mouseX, [-500, 500], [-3, 3]), { stiffness: 40, damping: 20 });
+
+  // System Shock Impact flash
+  useEffect(() => {
+    if (isExecuting) {
+        setImpact(true);
+        const timer = setTimeout(() => setImpact(false), 300);
+        return () => clearTimeout(timer);
+    }
+  }, [isExecuting]);
 
   useEffect(() => {
     initSimulation();
@@ -51,132 +55,138 @@ export const Dashboard: React.FC = () => {
       onMouseMove={handleMouseMove}
       className={cn(
         "relative w-screen h-screen overflow-hidden bg-[#050A08] perspective-1000 select-none cursor-none transition-all duration-300",
-        impact ? "brightness-150 scale-[1.005] rotate-1" : "brightness-100 scale-100 rotate-0"
+        impact ? "brightness-200 scale-[1.01] contrast-150" : "brightness-100 scale-100 contrast-100"
       )}
+      style={{ filter: "url(#thermal-stress)" }}
     >
       <BootOverlay onComplete={() => setIsBooted(true)} />
       <ClickSpark />
+      <DigitalWeather />
+      <ThermalFilter />
 
-      {/* 🖱️ Global Tactical Crosshair Cursor */}
+      {/* 🖱️ Elite Tactical Crosshair */}
       <motion.div 
-        className="fixed top-0 left-0 w-8 h-8 pointer-events-none z-[1000] mix-blend-difference"
+        className="fixed top-0 left-0 w-10 h-10 pointer-events-none z-[1000] mix-blend-difference"
         style={{ 
-            x: useSpring(mouseX, { stiffness: 400, damping: 30 }), 
-            y: useSpring(mouseY, { stiffness: 400, damping: 30 }),
+            x: useSpring(mouseX, { stiffness: 500, damping: 30 }), 
+            y: useSpring(mouseY, { stiffness: 500, damping: 30 }),
             translateX: "-50%",
             translateY: "-50%"
         }}
       >
         <div className="relative w-full h-full flex items-center justify-center">
-            <div className="absolute w-full h-[1px] bg-emerald-400/80" />
-            <div className="absolute h-full w-[1px] bg-emerald-400/80" />
-            <div className="w-1 h-1 bg-emerald-400 rounded-full" />
+            <div className="absolute w-full h-[1px] bg-emerald-400" />
+            <div className="absolute h-full w-[1px] bg-emerald-400" />
             <motion.div 
-                animate={{ rotate: 360 }}
-                transition={{ repeat: Infinity, duration: 4, ease: "linear" }}
-                className="absolute w-4 h-4 border border-emerald-400/40 rounded-sm"
+                animate={{ rotate: 360, scale: [1, 1.2, 1] }}
+                transition={{ repeat: Infinity, duration: 4 }}
+                className="absolute w-6 h-6 border border-emerald-400/30 rounded-full"
             />
+            <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full shadow-[0_0_10px_rgba(16,185,129,1)]" />
         </div>
       </motion.div>
 
-      {/* 🌌 Atmospheric Layers */}
+      {/* 🌌 Elite Background Layers */}
       <div className="absolute inset-0 z-0 pointer-events-none">
-         {/* Global Dynamic Spotlight */}
-         <motion.div 
-            className="absolute inset-0 opacity-40 transition-opacity duration-1000"
-            style={{
-                background: useMotionTemplate`radial-gradient(1000px circle at ${useTransform(mouseX, x => x + window.innerWidth/2)}px ${useTransform(mouseY, y => y + window.innerHeight/2)}px, rgba(16, 185, 129, 0.08), transparent 80%)`
-            }}
-         />
-         
-         {/* Parallax Grid */}
+         {/* Parallax Tactical Grid */}
          <motion.div 
             style={{ x: parallaxX, y: parallaxY }}
-            className="absolute inset-[-100px] bg-[linear-gradient(rgba(16,185,129,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(16,185,129,0.03)_1px,transparent_1px)] bg-[size:60px_60px]"
+            className="absolute inset-[-150px] bg-[linear-gradient(rgba(16,185,129,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(16,185,129,0.02)_1px,transparent_1px)] bg-[size:80px_80px]"
          />
 
-         {/* Premium Grain Overlay */}
-         <div className="absolute inset-0 opacity-[0.03] bg-[url('https://grainy-gradients.vercel.app/noise.svg')] pointer-events-none mix-blend-overlay" />
+         {/* Chromatic Flare Overlay during Impact */}
+         <AnimatePresence>
+            {impact && (
+                <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 0.15 }}
+                    exit={{ opacity: 0 }}
+                    className="absolute inset-0 bg-gradient-to-tr from-red-500 via-transparent to-emerald-500 z-50 mix-blend-overlay"
+                />
+            )}
+         </AnimatePresence>
       </div>
 
+      {/* 🖼️ HUD CONTENT CONTAINER */}
       <motion.div 
         initial={{ opacity: 0 }}
         animate={{ opacity: isBooted ? 1 : 0 }}
-        className="relative w-full h-full flex flex-col z-10 p-6 gap-6"
+        className={cn(
+            "relative w-full h-full flex flex-col z-10 p-6 gap-6",
+            isExecuting && "animate-jitter"
+        )}
         style={{ rotateX, rotateY, transformStyle: "preserve-3d" }}
       >
-        {/* 🔝 ROW 1: Execution Pipeline */}
+        {/* ROW 1: Execution Pipeline */}
         <motion.div 
           initial={{ y: -100, opacity: 0 }}
           animate={isBooted ? { y: 0, opacity: 1 } : {}}
-          transition={{ duration: 1.2, delay: 0.2, ease: [0.33, 1, 0.68, 1] }}
-          className="w-full h-[110px]"
+          transition={{ duration: 1.5, delay: 0.5 }}
+          className="w-full h-[120px] relative z-40"
         >
           <TransactionFlow />
         </motion.div>
 
-        {/* 🖼️ MAIN GRID: Sidebars + Chart */}
-        <div className="flex-grow flex gap-6 min-h-0">
-          
-          {/* LEFT: Branding & Metrics */}
-          <motion.div 
-            initial={{ x: -200, opacity: 0 }}
-            animate={isBooted ? { x: 0, opacity: 1 } : {}}
-            transition={{ duration: 1.2, delay: 0.5, ease: [0.33, 1, 0.68, 1] }}
-            className="w-[320px] flex flex-col gap-6"
-          >
-            <PremiumPanel className="flex-grow">
-              <PerformanceMetrics />
-            </PremiumPanel>
-          </motion.div>
+        {/* MAIN GRID */}
+        <div className="flex-grow flex gap-6 min-h-0 relative z-20" style={{ transformStyle: "preserve-3d" }}>
+            {/* SIDEBAR L */}
+            <motion.div 
+                initial={{ x: -200, opacity: 0 }}
+                animate={isBooted ? { x: 0, opacity: 1 } : {}}
+                transition={{ duration: 1, delay: 0.8 }}
+                className="w-[340px] flex flex-col gap-6"
+            >
+                <PremiumPanel className="flex-grow">
+                    <PerformanceMetrics />
+                </PremiumPanel>
+            </motion.div>
 
-          {/* CENTER: Main HUD Visualization */}
-          <motion.div 
-            initial={{ scale: 0.95, opacity: 0 }}
-            animate={isBooted ? { scale: 1, opacity: 1 } : {}}
-            transition={{ duration: 1.5, delay: 0.8, ease: [0.33, 1, 0.68, 1] }}
-            className="flex-grow flex flex-col"
-          >
-            <PremiumPanel className="h-full">
-               <AttributionChart />
-            </PremiumPanel>
-          </motion.div>
+            {/* MAIN HUD */}
+            <motion.div 
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={isBooted ? { scale: 1, opacity: 1 } : {}}
+                transition={{ duration: 1.2, delay: 1.1 }}
+                className="flex-grow flex flex-col"
+                style={{ transform: "translateZ(10px)" }}
+            >
+                <PremiumPanel className="h-full">
+                    <AttributionChart />
+                </PremiumPanel>
+            </motion.div>
 
-          {/* RIGHT: Ingestion Terminal */}
-          <motion.div 
-            initial={{ x: 200, opacity: 0 }}
-            animate={isBooted ? { x: 0, opacity: 1 } : {}}
-            transition={{ duration: 1.2, delay: 0.7, ease: [0.33, 1, 0.68, 1] }}
-            className="w-[420px] h-full"
-          >
-            <PremiumPanel className="h-full">
-              <IngestionStream />
-            </PremiumPanel>
-          </motion.div>
-
+            {/* SIDEBAR R */}
+            <motion.div 
+                initial={{ x: 200, opacity: 0 }}
+                animate={isBooted ? { x: 0, opacity: 1 } : {}}
+                transition={{ duration: 1, delay: 0.9 }}
+                className="w-[440px] h-full"
+            >
+                <PremiumPanel className="h-full">
+                    <IngestionStream />
+                </PremiumPanel>
+            </motion.div>
         </div>
 
-        {/* 🕹️ ROW 3: Fixed Controls */}
+        {/* BOTTOM CONTROLS */}
         <motion.div 
           initial={{ y: 200, opacity: 0 }}
           animate={isBooted ? { y: 0, opacity: 1 } : {}}
-          transition={{ duration: 1, delay: 1.2, ease: [0.33, 1, 0.68, 1] }}
-          className="w-full h-[120px]"
+          transition={{ duration: 1, delay: 1.4 }}
+          className="w-full h-[130px] relative z-30"
         >
           <BottomControlPanel />
         </motion.div>
       </motion.div>
 
       <style dangerouslySetInnerHTML={{ __html: `
-        .scanline-effect::after {
-            content: "";
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(to bottom, transparent, rgba(16, 185, 129, 0.05), transparent);
-            animation: scanline 8s linear infinite;
-            pointer-events: none;
-            z-index: 100;
+        @keyframes jitter {
+          0% { transform: translate(0,0); }
+          25% { transform: translate(1px, -1px); }
+          50% { transform: translate(-1px, 1px); }
+          75% { transform: translate(1px, 1px); }
+          100% { transform: translate(0,0); }
         }
+        .animate-jitter { animation: jitter 0.1s infinite; }
       `}} />
     </div>
   );

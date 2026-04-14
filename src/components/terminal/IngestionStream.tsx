@@ -65,21 +65,29 @@ export const IngestionStream: React.FC = () => {
               <motion.div
                 key={log.id}
                 layout
-                initial={{ opacity: 0, x: 20, skewX: 20, filter: "blur(5px)" }}
+                initial={{ opacity: 0, x: 10, filter: "blur(4px)" }}
                 animate={{ 
                     opacity: 1, 
                     x: 0, 
-                    skewX: 0,
                     filter: "blur(0px)"
                 }}
-                transition={{ duration: 0.4, ease: [0.33, 1, 0.68, 1] }}
-                className={`text-[10px] ${colorClass} flex gap-4 py-1.5 font-mono tracking-tight leading-relaxed group/log`}
+                transition={{ duration: 0.5, ease: [0.33, 1, 0.68, 1] }}
+                className={`text-[10px] ${colorClass} flex gap-4 py-1.5 font-mono tracking-tight leading-relaxed group/log relative overflow-hidden`}
               >
+                {/* 👾 Digital De-pixelation Reveal Mask */}
+                <motion.div 
+                    initial={{ scaleX: 1 }}
+                    animate={{ scaleX: 0 }}
+                    transition={{ duration: 0.8, ease: "circIn" }}
+                    className="absolute inset-0 bg-emerald-400/20 origin-right pointer-events-none"
+                    style={{ maskImage: 'url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAAXNSR0IArs4c6QAAABJJREFUGFdjYmBgYPgPxBxoEADhYQD9iQKyIAAAAABJRU5ErkJggg==")', maskSize: '4px' }}
+                />
+
                 <span className="text-emerald-950/30 shrink-0 font-black">[{log.timestamp}]</span>
-                <span className="shrink-0 font-black tracking-widest bg-white/5 px-2 py-0.5 rounded border border-white/5 group-hover/log:border-current transition-colors">
+                <span className="shrink-0 font-black tracking-widest bg-white/2 px-2 py-0.5 rounded border border-white/5 group-hover/log:border-current transition-colors">
                     {statusTag}
                 </span>
-                <span className="break-words select-text">{log.message}</span>
+                <span className="break-words select-text relative z-10">{log.message}</span>
               </motion.div>
             );
           })}

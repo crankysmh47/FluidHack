@@ -1,9 +1,10 @@
 // src/components/flow/TransactionFlow.tsx
-import React, { useMemo } from 'react';
+import React, { useRef } from 'react';
 import { useCarbonStore } from '../../store/useCarbonStore';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import { Key, Vault, Link, Waypoints, Leaf, FileText, Cpu, ShieldCheck } from 'lucide-react';
 import { MaskedText } from '../layout/MaskedText';
+import { useHeartbeat } from '../../hooks/useHeartbeat';
 
 const NODES = [
   "Verify Preimage",
@@ -26,9 +27,44 @@ const ICONS = [
   )
 ];
 
+const MagneticNode = ({ children, isActive, isPast }: { children: React.ReactNode, isActive: boolean, isPast: boolean }) => {
+    const x = useMotionValue(0);
+    const y = useMotionValue(0);
+    const springX = useSpring(x, { stiffness: 150, damping: 15 });
+    const springY = useSpring(y, { stiffness: 150, damping: 15 });
+
+    const handleMouseMove = (e: React.MouseEvent) => {
+        const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
+        const centerX = left + width / 2;
+        const centerY = top + height / 2;
+        x.set((e.clientX - centerX) * 0.4);
+        y.set((e.clientY - centerY) * 0.4);
+    };
+
+    const handleMouseLeave = () => {
+        x.set(0);
+        y.set(0);
+    };
+
+    return (
+        <motion.div 
+            style={{ x: springX, y: springY }}
+            onMouseMove={handleMouseMove}
+            onMouseLeave={handleMouseLeave}
+            className={`relative z-10 flex items-center justify-center w-14 h-14 rounded-xl border transition-all duration-700 ${
+                isPast ? 'bg-emerald-950/20 border-emerald-600/40 shadow-[0_0_15px_rgba(16,185,129,0.1)]' 
+                : isActive ? 'bg-emerald-500/10 border-emerald-400 shadow-[0_0_40px_rgba(16,185,129,0.4)]' 
+                : 'bg-emerald-950/5 border-emerald-900/10 opacity-30'
+            }`}
+        >
+            {children}
+        </motion.div>
+    );
+};
+
 export const TransactionFlow: React.FC = () => {
-  const transactionStep = useCarbonStore(state => state.transactionStep);
-  const isExecuting = useCarbonStore(state => state.isExecuting);
+  const { transactionStep, isExecuting } = useCarbonStore();
+  const pulse = useHeartbeat();
 
   return (
     <div className="w-full h-full flex items-center px-10 relative overflow-hidden bg-[#0A1410]/95 backdrop-blur-2xl border border-emerald-900/30 rounded-2xl shadow-2xl">
@@ -70,27 +106,21 @@ export const TransactionFlow: React.FC = () => {
                     </div>
                 )}
 
-                <motion.div 
-                  whileHover={{ scale: 1.05 }}
-                  className={`relative z-10 flex items-center justify-center w-14 h-14 rounded-xl border transition-all duration-700 ${
-                  isPast ? 'bg-emerald-950/20 border-emerald-600/40 shadow-[0_0_15px_rgba(16,185,129,0.1)]' 
-                  : isActive ? 'bg-emerald-500/10 border-emerald-400 shadow-[0_0_40px_rgba(16,185,129,0.4)]' 
-                  : 'bg-emerald-950/5 border-emerald-900/10 opacity-30'
-                }`}>
-                  <Icon className={`w-6 h-6 transition-colors duration-500 ${
-                    isPast ? 'text-emerald-700' : isActive ? 'text-emerald-400' : 'text-emerald-950/40'
-                  }`} />
-                  
-                  {isPast && (
-                    <motion.div 
-                      initial={{ scale: 0 }} 
-                      animate={{ scale: 1 }}
-                      className="absolute -top-1.5 -right-1.5 bg-emerald-950 rounded-full p-1 border border-emerald-500/60 shadow-lg"
-                    >
-                      <div className="w-2.5 h-2.5 bg-emerald-400 rounded-full animate-pulse" />
-                    </motion.div>
-                  )}
-                </motion.div>
+                <MagneticNode isActive={isActive} isPast={isPast}>
+                    <Icon className={`w-6 h-6 transition-colors duration-500 ${
+                        isPast ? 'text-emerald-700' : isActive ? 'text-emerald-400' : 'text-emerald-950/40'
+                    }`} />
+                    
+                    {isPast && (
+                        <motion.div 
+                        initial={{ scale: 0 }} 
+                        animate={{ scale: 1 }}
+                        className="absolute -top-1.5 -right-1.5 bg-emerald-950 rounded-full p-1 border border-emerald-500/60 shadow-lg"
+                        >
+                        <div className="w-2.5 h-2.5 bg-emerald-400 rounded-full animate-pulse" />
+                        </motion.div>
+                    )}
+                </MagneticNode>
 
                 <div className="flex flex-col gap-0.5">
                   <MaskedText 
@@ -113,6 +143,7 @@ export const TransactionFlow: React.FC = () => {
                   <motion.div 
                     initial={{ width: 0 }}
                     animate={{ width: isPast ? "100%" : "0%" }}
+                    style={{ opacity: pulse * 0.5 + 0.5 }} // Rhythmic energy pulse
                     transition={{ duration: 1, ease: "easeInOut" }}
                     className="h-full bg-emerald-600/40 shadow-[0_0_10px_rgba(16,185,129,0.5)]"
                   />
