@@ -30,7 +30,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 try:
-    from flask import Flask, jsonify, request, abort
+    from flask import Flask, jsonify, request, abort, send_from_directory
     from flask_cors import CORS
 except ImportError:
     print("ERROR: Flask not installed. Run:  pip install flask flask-cors")
@@ -51,6 +51,33 @@ from tx_log import read_all_txs, get_total_stats, get_hashes_only
 # ── App ───────────────────────────────────────────────────────────────────────
 app = Flask(__name__)
 CORS(app)  # Allow cross-origin requests from the frontend
+# ── Serve React Frontend ─────────────────────────────────────────────────────
+_FRONTEND_DIR = _GLUE_DIR.parent / "frontend" / "dist"
+
+
+@app.route("/", methods=["GET"])
+def serve_index():
+    """Serve React's index.html at the root."""
+    index = _FRONTEND_DIR / "index.html"
+    if index.exists():
+        return send_from_directory(str(_FRONTEND_DIR), "index.html")
+    # Fallback to API status if no frontend build exists
+    return status()
+
+
+@app.route("/assets/<path:filename>")
+def serve_assets(filename):
+    """Serve Vite-built static assets (JS, CSS, images)."""
+    return send_from_directory(str(_FRONTEND_DIR / "assets"), filename)
+
+
+@app.errorhandler(404)
+def fallback(e):
+    """Serve React's index.html for unknown routes (SPA client-side routing)."""
+    index = _FRONTEND_DIR / "index.html"
+    if index.exists():
+        return send_from_directory(str(_FRONTEND_DIR), "index.html")
+    return jsonify({"error": "Not found"}), 404
 
 
 def _ts() -> str:
@@ -67,7 +94,7 @@ def _err(message: str, code: int = 400):
 
 # ── Health / Status ───────────────────────────────────────────────────────────
 
-@app.route("/", methods=["GET"])
+
 @app.route("/status", methods=["GET"])
 def status():
     """Agent health check + platform-wide carbon offset summary."""
