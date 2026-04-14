@@ -1,3 +1,6 @@
+node_modules/
+.vite/
+
 # Foundry build outputs
 /contracts/out/
 /contracts/cache/
@@ -17,7 +20,6 @@ __pycache__/
 .venv/
 
 # Node (Track 3)
-node_modules/
 .next/
 
 # OS
