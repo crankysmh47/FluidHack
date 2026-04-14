@@ -1,1 +1,29 @@
-node_modules
+node_modules/
+.vite/
+
+# Foundry build outputs
+/contracts/out/
+/contracts/cache/
+/contracts/broadcast/
+
+# Dependencies (installed via forge install)
+/contracts/lib/
+
+# Environment
+.env
+.env.local
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+
+# Node (Track 3)
+.next/
+
+# OS
+.DS_Store
+Thumbs.db
+
+.qwen/

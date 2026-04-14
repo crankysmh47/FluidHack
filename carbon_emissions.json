@@ -1,0 +1,57 @@
+{
+  "Karachi": {
+    "zone": "PK",
+    "carbonIntensity": 450,
+    "datetime": "2026-04-13T20:00:00.000Z",
+    "updatedAt": "2026-04-13T18:25:36.426Z",
+    "createdAt": "2026-04-13T12:25:38.012Z",
+    "emissionFactorType": "lifecycle",
+    "isEstimated": true,
+    "estimationMethod": "GENERAL_PURPOSE_ZONE_MODEL",
+    "temporalGranularity": "hourly"
+  },
+  "Lahore": {
+    "zone": "PK",
+    "carbonIntensity": 650,
+    "datetime": "2026-04-13T20:00:00.000Z",
+    "updatedAt": "2026-04-13T18:25:36.426Z",
+    "createdAt": "2026-04-13T12:25:38.012Z",
+    "emissionFactorType": "lifecycle",
+    "isEstimated": true,
+    "estimationMethod": "GENERAL_PURPOSE_ZONE_MODEL",
+    "temporalGranularity": "hourly"
+  },
+  "Islamabad": {
+    "zone": "PK",
+    "carbonIntensity": 300,
+    "datetime": "2026-04-13T20:00:00.000Z",
+    "updatedAt": "2026-04-13T18:25:36.426Z",
+    "createdAt": "2026-04-13T12:25:38.012Z",
+    "emissionFactorType": "lifecycle",
+    "isEstimated": true,
+    "estimationMethod": "GENERAL_PURPOSE_ZONE_MODEL",
+    "temporalGranularity": "hourly"
+  },
+  "Peshawar": {
+    "zone": "PK",
+    "carbonIntensity": 250,
+    "datetime": "2026-04-13T20:00:00.000Z",
+    "updatedAt": "2026-04-13T18:25:36.426Z",
+    "createdAt": "2026-04-13T12:25:38.012Z",
+    "emissionFactorType": "lifecycle",
+    "isEstimated": true,
+    "estimationMethod": "GENERAL_PURPOSE_ZONE_MODEL",
+    "temporalGranularity": "hourly"
+  },
+  "Multan": {
+    "zone": "PK",
+    "carbonIntensity": 550,
+    "datetime": "2026-04-13T20:00:00.000Z",
+    "updatedAt": "2026-04-13T18:25:36.426Z",
+    "createdAt": "2026-04-13T12:25:38.012Z",
+    "emissionFactorType": "lifecycle",
+    "isEstimated": true,
+    "estimationMethod": "GENERAL_PURPOSE_ZONE_MODEL",
+    "temporalGranularity": "hourly"
+  }
+}
