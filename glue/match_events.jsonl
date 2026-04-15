@@ -1,2 +1,5 @@
 {"timestamp": "2026-04-16T14:30:00Z", "event": "SCHEDULED", "reason": "Match #24: Hyderabad Kingsmen vs Rawalpindi Pindiz", "amount_usd": 0.0}
 {"timestamp": "2026-04-15T17:52:47.637445+00:00", "event": "GRID_SPIKE", "reason": "Grid Alert: Heavy load detected", "amount_usd": 1.25}
+{"timestamp": "2026-04-15T18:37:54.701782+00:00", "event": "WICKET", "reason": "PSL Live: Wicket fallen!", "amount_usd": 0.5}
+{"timestamp": "2026-04-15T18:38:02.702407+00:00", "event": "SIX", "reason": "PSL Live: Massive SIX!", "amount_usd": 0.75}
+{"timestamp": "2026-04-15T18:38:07.703022+00:00", "event": "GRID_SPIKE", "reason": "Grid Alert: Heavy load detected", "amount_usd": 1.25}
