@@ -144,7 +144,7 @@ class AttributionEngine:
             f"Attribution Analysis:\n"
             f"  Grid Intensity: {bd['grid_intensity_gco2_kwh']} gCO2eq/kWh\n"
             f"  Stadium Load: {bd['stadium_load_kw']} kW (floodlights: {bd['floodlights_on']})\n"
-            f"  City AC Load Factor: {bd['city_ac_load_factor']}x (temp: {bd['weather']['temperature_c']}°C)\n"
+            f"  City AC Load Factor: {bd['city_ac_load_factor']}x (temp: {bd['weather']['temperature_c']} degC)\n"
             f"  Attribution Ratio: {bd['attribution_ratio']*100:.1f}% of grid spike is stadium\n"
             f"  Stadium Consumption: {bd['stadium_consumption_kwh']} kWh\n"
             f"  Logistics/Transit Footprint: {bd['logistics_footprint_kg']} kg CO2eq\n"

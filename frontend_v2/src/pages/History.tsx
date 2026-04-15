@@ -1,12 +1,16 @@
 import React, { useEffect } from 'react';
 import { useCarbonStore } from '../store/useCarbonStore';
 import { useNavigate } from 'react-router-dom';
+import { useWeb3Modal } from '@web3modal/wagmi/react';
+import { useAccount } from 'wagmi';
 import EcologicalBackground from '../components/EcologicalBackground';
 import CursorStars from '../components/CursorStars';
 
 const History: React.FC = () => {
   const { user, fullHistory, fetchFullHistory, agentHistory, fetchAgentHistory } = useCarbonStore();
   const navigate = useNavigate();
+  const { open } = useWeb3Modal();
+  const { isConnected } = useAccount();
 
   useEffect(() => {
     if (user) {
@@ -23,29 +27,57 @@ const History: React.FC = () => {
       {/* Cursor Stars */}
       <CursorStars />
 
-      {/* TopAppBar */}
-      <header className="sticky top-0 z-40 bg-slate-50/70 dark:bg-slate-900/70 backdrop-blur-xl flex flex-col w-full px-6 pt-6 pb-4 border-b border-outline-variant/10">
-        <div className="flex items-center gap-4 mb-2">
-          <button 
-            onClick={() => navigate('/dashboard')}
-            className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-surface-container transition-colors"
-          >
-            <span className="material-symbols-outlined">arrow_back</span>
-          </button>
-          <img 
-            src="https://raw.githubusercontent.com/Tvwap/Tvimage/main/psl.png" 
-            alt="PSL Logo" 
-            className="w-10 h-10 object-contain" 
-            onError={(e) => {
-              (e.target as HTMLImageElement).src = "https://upload.wikimedia.org/wikipedia/commons/d/d4/Pakistan_Super_League_X.png";
-            }}
-          />
-          <h1 className="text-3xl font-headline font-extrabold tracking-tighter text-on-surface">
-            PSL Legacy <span className="text-primary italic">Ledger</span>
-          </h1>
+      {/* TopAppBar - Premium Glassmorphism */}
+      <header className="sticky top-0 z-50 bg-white/70 dark:bg-slate-900/80 backdrop-blur-2xl border-b border-emerald-500/10 w-full px-6 py-6 transition-all">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={() => navigate('/dashboard')}
+              className="w-10 h-10 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center hover:bg-emerald-500 hover:text-white transition-all group"
+            >
+              <span className="material-symbols-outlined text-xl group-hover:scale-110 transition-transform">arrow_back</span>
+            </button>
+            
+            <div className="h-8 w-px bg-emerald-500/10 mx-1"></div>
+
+            <div className="flex items-center gap-4 cursor-pointer" onClick={() => navigate('/dashboard')}>
+              <img 
+                src="/psl_giants.png" 
+                alt="PSL Giants" 
+                className="w-12 h-12 object-contain drop-shadow-[0_5px_15px_rgba(16,185,129,0.2)]" 
+              />
+              <div className="flex flex-col">
+                <h1 className="text-2xl font-black font-headline text-emerald-950 dark:text-emerald-50 tracking-tighter leading-none uppercase">
+                  Legacy <span className="text-emerald-600 italic">Ledger</span>
+                </h1>
+                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-emerald-500 mt-1">
+                  On-Chain Carbon History
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+             {/* Restored Wallet Button */}
+             <button 
+               onClick={() => open()}
+               className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 border border-emerald-500/10 px-4 py-2 rounded-2xl text-[10px] uppercase font-black tracking-widest hover:border-emerald-500/30 transition-all mr-2"
+             >
+               <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-slate-400'} animate-pulse`}></span>
+               {isConnected ? 'Wallet' : 'Connect'}
+             </button>
+
+             <div className="hidden md:block text-right mr-4">
+               <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Network Connected</p>
+               <p className="text-xs font-bold text-emerald-500">WireFluid Protocol</p>
+             </div>
+             <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
+               <span className="material-symbols-outlined text-emerald-600">verified_user</span>
+             </div>
+          </div>
         </div>
-        <p className="text-sm text-on-surface-variant max-w-md">
-          A definitive on-chain history of your autonomous carbon offsets via the WireFluid protocol.
+        <p className="text-[11px] text-slate-500 dark:text-slate-400 max-w-lg font-medium leading-relaxed">
+          A definitive immutable record of atmospheric asset settlements performed by your autonomous Sentinel Agent.
         </p>
       </header>
 

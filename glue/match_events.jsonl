@@ -1,7 +1,2 @@
-{"timestamp": "2026-04-15T16:35:00Z", "event": "WICKET", "reason": "PSL Live: Wicket fallen for Peshawar Zalmi", "amount_usd": 0.5}
-{"timestamp": "2026-04-15T16:35:10Z", "event": "SIX", "reason": "PSL Live: Massive SIX by Babar Azam!", "amount_usd": 0.75}
-{"timestamp": "2026-04-15T16:35:20Z", "event": "GRID_SPIKE", "reason": "Grid Alert: Fossil fuel surge detected in Karachi", "amount_usd": 1.2}
-{"timestamp": "2026-04-15T11:49:56.825853+00:00", "event": "WICKET", "reason": "PSL Live: Wicket fallen for Peshawar Zalmi", "amount_usd": 0.5}
-{"timestamp": "2026-04-15T11:55:37.396509+00:00", "event": "WICKET", "reason": "PSL Live: Wicket fallen!", "amount_usd": 0.5}
-{"timestamp": "2026-04-15T11:55:45.399737+00:00", "event": "SIX", "reason": "PSL Live: Massive SIX!", "amount_usd": 0.75}
-{"timestamp": "2026-04-15T11:55:50.403183+00:00", "event": "GRID_SPIKE", "reason": "Grid Alert: Heavy load detected", "amount_usd": 1.25}
+{"timestamp": "2026-04-16T14:30:00Z", "event": "SCHEDULED", "reason": "Match #24: Hyderabad Kingsmen vs Rawalpindi Pindiz", "amount_usd": 0.0}
+{"timestamp": "2026-04-15T17:52:47.637445+00:00", "event": "GRID_SPIKE", "reason": "Grid Alert: Heavy load detected", "amount_usd": 1.25}

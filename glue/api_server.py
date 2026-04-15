@@ -1,5 +1,5 @@
 """
-Carbon Sentinel — REST API Server
+Carbon Sentinel - REST API Server
 Provides a clean HTTP API for the frontend to:
   - Read agent status, total offsets, and ledger history
   - Get/set user agent configuration (budget, limits, on/off)
@@ -12,17 +12,21 @@ Usage:
     python glue/api_server.py --port 8080
 """
 from __future__ import annotations
-
-import argparse
-import json
 import os
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
-import time
 
-# Ensure project root is in sys.path for local module imports
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+# == Path injection & Bulletproof terminal protection ==========================
+_GLUE_DIR  = Path(os.path.dirname(os.path.abspath(__file__)))
+_SRC_DIR   = _GLUE_DIR.parent / "sentinel_core"
+sys.path.insert(0, str(_GLUE_DIR))
+sys.path.insert(0, str(_SRC_DIR))
+
+try:
+    from string_utils import install_safe_stdout, safe_str
+    install_safe_stdout()
+except ImportError:
+    print("[API] Warning: string_utils not found during early init.")
 
 _FEED_CACHE = {
     "crypto": None,
@@ -31,11 +35,10 @@ _FEED_CACHE = {
     "sports_ts": 0,
 }
 
-# ── Path injection ────────────────────────────────────────────────────────────
-_GLUE_DIR  = Path(os.path.dirname(os.path.abspath(__file__)))
-_SRC_DIR   = _GLUE_DIR.parent / "sentinel_core"
-sys.path.insert(0, str(_GLUE_DIR))
-sys.path.insert(0, str(_SRC_DIR))
+import argparse
+import json
+from datetime import datetime, timezone
+import time
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -58,13 +61,14 @@ from user_control import (
     check_budget_gate,
     get_user_ledger,
 )
+# from string_utils import safe_str  # now imported at top
 from agent_sessions import start_session, end_session, get_session_history
 from tx_log import read_all_txs, get_total_stats, get_hashes_only
 
-# ── App ───────────────────────────────────────────────────────────────────────
+# == App =======================================================================
 app = Flask(__name__)
 CORS(app)  # Allow cross-origin requests from the frontend
-# ── Serve React Frontend ─────────────────────────────────────────────────────
+# == Serve React Frontend =====================================================
 _FRONTEND_DIR = _GLUE_DIR.parent / "frontend_v2" / "dist"
 
 
@@ -109,7 +113,7 @@ def _ok(data: dict, code: int = 200):
 def _err(message: str, code: int = 400):
     return jsonify({"ok": False, "error": message, "timestamp": _ts()}), code
 
-# ── Auth (Local Mock) ─────────────────────────────────────────────────────────
+# == Auth (Local Mock) =========================================================
 
 AUTH_FILE = _GLUE_DIR / "passwords.json"
 
@@ -158,7 +162,7 @@ def auth_login():
 
 
 
-# ── Health / Status ───────────────────────────────────────────────────────────
+# == Health / Status ===========================================================
 
 
 @app.route("/status", methods=["GET"])
@@ -179,7 +183,7 @@ def status():
     })
 
 
-# ── Live Feed ─────────────────────────────────────────────────────────────────
+# == Live Feed =================================================================
 
 @app.route("/live-feed", methods=["GET"])
 def live_feed():
@@ -206,14 +210,14 @@ def live_feed():
                 
                 # Fetch fallback if needed
                 fallback_vals = {
-                    "bct": {"price": 18.42, "change": 2.4, "tvl": 500000, "chain": "Polygon"},
-                    "mco2": {"price": 12.15, "change": -0.8, "tvl": 120000, "chain": "Polygon"},
-                    "nct": {"price": 22.10, "change": 1.2, "tvl": 85000, "chain": "Polygon"},
-                    "ubo": {"price": 4.50, "change": 5.4, "tvl": 32000, "chain": "Polygon"},
-                    "c3t": {"price": 5.60, "change": 3.1, "tvl": 45000, "chain": "Polygon"},
-                    "klima": {"price": 2.45, "change": 8.5, "tvl": 1500000, "chain": "Polygon"},
-                    "crisp": {"price": 8.90, "change": -1.5, "tvl": 21000, "chain": "Polygon"},
-                    "regen": {"price": 15.20, "change": 0.5, "tvl": 62000, "chain": "Polygon"}
+                    "bct": {"price": 0.65, "change": 2.4, "tvl": 500000, "chain": "Polygon"},
+                    "mco2": {"price": 1.25, "change": -0.8, "tvl": 120000, "chain": "Polygon"},
+                    "nct": {"price": 0.70, "change": 1.2, "tvl": 85000, "chain": "Polygon"},
+                    "ubo": {"price": 0.45, "change": 5.4, "tvl": 32000, "chain": "Polygon"},
+                    "c3t": {"price": 0.50, "change": 3.1, "tvl": 45000, "chain": "Polygon"},
+                    "klima": {"price": 1.20, "change": 8.5, "tvl": 1500000, "chain": "Polygon"},
+                    "crisp": {"price": 2.10, "change": -1.5, "tvl": 21000, "chain": "Polygon"},
+                    "regen": {"price": 0.85, "change": 0.5, "tvl": 62000, "chain": "Polygon"}
                 }
                 
                 # Use real price if available, otherwise pool price, otherwise fallback
@@ -236,43 +240,53 @@ def live_feed():
             print(f"[LiveFeed] Crypto error: {e}")
             if not _FEED_CACHE["crypto"]:
                 _FEED_CACHE["crypto"] = {
-                    "bct": {"price": 18.42, "change": 2.4}, 
-                    "mco2": {"price": 12.15, "change": -0.8},
-                    "nct": {"price": 22.10, "change": 1.2},
-                    "ubo": {"price": 4.50, "change": 5.4},
-                    "c3t": {"price": 5.60, "change": 3.1},
-                    "klima": {"price": 2.45, "change": 8.5},
-                    "crisp": {"price": 8.90, "change": -1.5},
-                    "regen": {"price": 15.20, "change": 0.5}
+                    "bct": {"price": 0.65, "change": 2.4}, 
+                    "mco2": {"price": 1.25, "change": -0.8},
+                    "nct": {"price": 0.70, "change": 1.2},
+                    "ubo": {"price": 0.45, "change": 5.4},
+                    "c3t": {"price": 0.50, "change": 3.1},
+                    "klima": {"price": 1.20, "change": 8.5},
+                    "crisp": {"price": 2.10, "change": -1.5},
+                    "regen": {"price": 0.85, "change": 0.5}
                 }
 
-    # 2. Sports Data (Refresh every 3min if live, every 1hour if not)
+    # 2. Sports Data (Refresh every 3min if live, every 5min if not)
     # We use a long initial cache check, and then override sports_ts carefully.
     if not _FEED_CACHE["sports"] or now - _FEED_CACHE["sports_ts"] > 0:
         try:
             from data_sources.sports_api import SportsAPIClient
             from config import DEFAULT_MATCH
             sports = SportsAPIClient()
+            
+            # 1. Try the default configured match FIRST to get its status
             match_info = sports.get_match_by_teams(DEFAULT_MATCH["home_team"], DEFAULT_MATCH["away_team"])
             is_live = sports.is_match_live(match_info)
-            if not is_live:
-                if not match_info:
+            
+            # 2. If the default match has ended (or isn't found), look for the actual next match
+            if not is_live or match_info.get("matchEnded"):
+                live_matches = sports.get_live_matches()
+                if live_matches:
+                    match_info = live_matches[0]
+                    is_live = True
+                else:
+                    # Fallback to the next upcoming match in the schedule
                     match_info = sports.get_next_psl_match()
-                is_live = False
+                    is_live = False
 
             _FEED_CACHE["sports"] = {
                 "is_live": is_live,
                 "match": match_info
             }
-            # Cache duration: 180s (3m) if live, 3600s (1h) if not live
-            cache_duration = 180 if is_live else 3600
+            # Cache duration: 180s (3m) if live, 300s (5m) if not live
+            cache_duration = 30 if is_live else 60
             _FEED_CACHE["sports_ts"] = now + cache_duration
         except Exception as e:
-            print(f"[LiveFeed] Sports error: {e}")
+            from string_utils import safe_str
+            print(f"[LiveFeed] Sports error: {safe_str(e)}")
             if not _FEED_CACHE["sports"]:
                 _FEED_CACHE["sports"] = {"is_live": False, "match": None}
-            # If error, try again in 5 mins
-            _FEED_CACHE["sports_ts"] = now + 300
+            # If error, try again in 1 min
+            _FEED_CACHE["sports_ts"] = now + 60
 
     return _ok({
         "crypto": _FEED_CACHE["crypto"],
@@ -297,7 +311,7 @@ def offsets():
 
 @app.route("/offsets/local", methods=["GET"])
 def offsets_local():
-    """Local tx_hashes.jsonl stats — works even without Supabase."""
+    """Local tx_hashes.jsonl stats - works even without Supabase."""
     return _ok(get_total_stats())
 
 
@@ -307,12 +321,11 @@ def offset_hashes():
     return _ok({"tx_hashes": get_hashes_only()})
 
 
-# ── Ledger ────────────────────────────────────────────────────────────────────
+# == Ledger ====================================================================
 
 @app.route("/ledger", methods=["GET"])
 def ledger():
     """
-    Paginated offset ledger from local JSONL.
     Query params: page (1-indexed), per_page
     """
     page = max(1, int(request.args.get("page", 1)))
@@ -422,6 +435,11 @@ def demo_faucet():
             max_tx_usd=500.0,
             authorized_tx_count=100
         )
+        
+        # Ensure session starts so the agent recognizes it immediately
+        end_session(user_id, 0.0, 0, status="OVERWRITTEN")
+        start_session(user_id, 10000.0, 100)
+
         return _ok({
             "message": f"Faucet dispensed! $10,000 USD added to demo wallet for {user_id}.",
             "balance": 10000.0,
@@ -529,7 +547,7 @@ def agent_run_cycle():
     body = request.get_json(silent=True) or {}
     user_id = body.get("user_id", "demo_user")
     
-    _LAST_AGENT_CYCLE["running"] = true
+    _LAST_AGENT_CYCLE["running"] = True
     try:
         from agent import CarbonSentinelAgent
         from config import DEFAULT_MATCH
@@ -542,7 +560,7 @@ def agent_run_cycle():
     except Exception as e:
         _LAST_AGENT_CYCLE["result"] = {"error": str(e)}
         _LAST_AGENT_CYCLE["timestamp"] = time.time()
-        print(f"[AgentCycle] Error: {e}")
+        print(f"[AgentCycle] Error: {safe_str(e)}")
     finally:
         _LAST_AGENT_CYCLE["running"] = False
     
@@ -550,7 +568,7 @@ def agent_run_cycle():
 
 
 
-# ── User Config ───────────────────────────────────────────────────────────────
+# == User Config ===============================================================
 
 @app.route("/user/<user_id>/config", methods=["GET"])
 def get_config(user_id: str):
@@ -561,7 +579,7 @@ def get_config(user_id: str):
 @app.route("/user/<user_id>/config", methods=["POST", "PUT"])
 def set_config(user_id: str):
     """
-    Update a user's agent config.
+    Update a user agent config.
     Body JSON fields (all optional):
       - budget_usd: float
       - max_tx_usd: float
@@ -607,9 +625,44 @@ def set_config(user_id: str):
 
 @app.route("/user/<user_id>/ledger/supabase", methods=["GET"])
 def user_ledger_supabase(user_id: str):
-    """Return full transaction history for a specific user from Supabase."""
+    """Return full transaction history for a specific user.
+    
+    Reads from local tx_hashes.jsonl (primary, always has data) and
+    merges with Supabase tx_log if available.
+    """
     limit = int(request.args.get("limit", 50))
-    return _ok(get_user_ledger(user_id, limit=limit))
+
+    # 1. Always read from local file first (guaranteed to have data)
+    local_records = []
+    local_log = _GLUE_DIR.parent / "tx_hashes.jsonl"
+    if local_log.exists():
+        try:
+            with open(local_log, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        rec = json.loads(line)
+                        if rec.get("user_id") == user_id or user_id == "system":
+                            local_records.append(rec)
+                    except json.JSONDecodeError:
+                        pass
+        except Exception as e:
+            print(f"[API] Local ledger read error: {e}")
+
+    # 2. Also try Supabase (may have richer data or records from other machines)
+    supabase_records = get_user_ledger(user_id, limit=limit)
+
+    # 3. Merge: use Supabase records if available, otherwise local
+    if supabase_records:
+        result = supabase_records
+    else:
+        # Sort newest first, apply limit
+        local_records.sort(key=lambda r: r.get("logged_at", ""), reverse=True)
+        result = local_records[:limit]
+
+    return _ok(result)
 
 
 @app.route("/user/<user_id>/offsets", methods=["GET"])
@@ -624,7 +677,7 @@ def user_agent_history(user_id: str):
     return _ok(get_session_history(user_id))
 
 
-# ── Agent Control ─────────────────────────────────────────────────────────────
+# == Agent Control =============================================================
 
 @app.route("/user/<user_id>/revoke", methods=["POST"])
 def revoke(user_id: str):
@@ -642,15 +695,15 @@ def restore(user_id: str):
     return _ok({"message": f"Agent restored for {user_id}", "config": updated})
 
 
-# ── Force Buy ─────────────────────────────────────────────────────────────────
+# == Force Buy =================================================================
 
 @app.route("/user/<user_id>/force-buy", methods=["POST"])
 def force_buy(user_id: str):
     """
     Queue a manual carbon credit purchase.
     Body JSON:
-      - amount_usd: float (required) — USD to spend
-      - match_id: str (optional) — match context
+      - amount_usd: float (required) - USD to spend
+      - match_id: str (optional) - match context
     The agent will execute this on its next cycle (or immediately if running).
     """
     body = request.get_json(silent=True) or {}
@@ -708,7 +761,7 @@ def force_buy_immediate(user_id: str):
         return _err(f"Force-buy failed: {e}", 500)
 
 
-# ── Budget Check ──────────────────────────────────────────────────────────────
+# == Budget Check ==============================================================
 
 @app.route("/user/<user_id>/budget-check", methods=["GET"])
 def budget_check(user_id: str):
@@ -741,7 +794,7 @@ def budget_check(user_id: str):
     })
 
 
-# ── Entry point ───────────────────────────────────────────────────────────────
+# == Entry point ===============================================================
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Carbon Sentinel API Server")

@@ -30,7 +30,7 @@ def log_telemetry(match_id: str, grid_intensity: float, weather_temp: float,
         'city_load_kw': city_load_kw,
         'raw_payload': raw_payload
     }).execute()
-    print(f"✅ Telemetry logged for match: {match_id}")
+    print(f"[OK] Telemetry logged for match: {match_id}")
 
 
 def log_decision(match_id: str, footprint_kg: float, target_token: str,
@@ -43,7 +43,7 @@ def log_decision(match_id: str, footprint_kg: float, target_token: str,
         'dest_chain': dest_chain,
         'status': 'pending'
     }).execute()
-    print(f"✅ Decision logged for match: {match_id}")
+    print(f"[OK] Decision logged for match: {match_id}")
 
 
 # --- Test all three tables ---

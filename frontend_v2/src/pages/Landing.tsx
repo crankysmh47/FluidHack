@@ -47,18 +47,13 @@ const Landing: React.FC = () => {
         <nav className="flex justify-between items-center px-6 py-4 max-w-7xl mx-auto w-full">
           <div className="flex items-center gap-3">
             <img 
-              src="https://raw.githubusercontent.com/Tvwap/Tvimage/main/psl.png" 
+              src="/psl_giants.png" 
               alt="PSL Logo" 
-              className="w-10 h-10 object-contain" 
-              onError={(e) => {
-                (e.target as HTMLImageElement).src = "https://upload.wikimedia.org/wikipedia/commons/d/d4/Pakistan_Super_League_X.png";
-              }}
+              className="w-12 h-12 object-contain" 
             />
             <span className="text-xl font-bold text-slate-900 font-headline tracking-tight">PSL Carbon Sentinel</span>
           </div>
           <div className="hidden md:flex items-center gap-8">
-            <a className="text-emerald-600 font-medium font-headline tracking-tight hover:bg-slate-100/50 transition-colors px-3 py-1 rounded" href="#">Protocol</a>
-            <a className="text-slate-500 font-headline tracking-tight hover:bg-slate-100/50 transition-colors px-3 py-1 rounded" href="#">Whitepaper</a>
             <button 
               onClick={() => {
                 if(user) navigate('/dashboard'); else setAuthMode('login');

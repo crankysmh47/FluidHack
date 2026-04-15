@@ -17,9 +17,11 @@ ELECTRICITY_MAPS_TOKEN = os.getenv("ELECTRICITY_MAPS_TOKEN", "")
 WEATHER_API_URL = "https://api.openweathermap.org/data/2.5"
 WEATHER_API_KEY = os.getenv("WEATHER_API_KEY", "")
 
-# Sports API (API-Football / custom sports feed)
+# Sports / Cric API
 SPORTS_API_URL = os.getenv("SPORTS_API_URL", "https://v3.football.api-sports.io")
 SPORTS_API_KEY = os.getenv("SPORTS_API_KEY", "")
+CRIC_API_KEY = os.getenv("CRIC_API_KEY", "")
+PSL_MATCHES_ID = os.getenv("PSL_MATCHES_ID", "9aede005-627e-47d9-8cad-088c8f5585d7")
 
 # DefiLlama
 DEFILLAMA_API_URL = "https://yields.llama.fi"
@@ -62,8 +64,8 @@ STADIUMS = {
 
 # Default match config
 DEFAULT_MATCH = {
-    "match_id": "PSL_2026_01",
-    "stadium_key": "national_stadium_karachi",
-    "home_team": "Peshawar Zalmi",
-    "away_team": "Multan Sultans",
+    "match_id": "PSL_2026_Match_24",
+    "stadium_key": "rawalpindi_cricket_stadium",
+    "home_team": "Hyderabad Kingsmen",
+    "away_team": "Rawalpindi Pindiz",
 }

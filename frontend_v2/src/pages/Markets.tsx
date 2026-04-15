@@ -1,12 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { useCarbonStore } from '../store/useCarbonStore';
 import { useNavigate } from 'react-router-dom';
+import { useWeb3Modal } from '@web3modal/wagmi/react';
+import { useAccount } from 'wagmi';
 import EcologicalBackground from '../components/EcologicalBackground';
 import CursorStars from '../components/CursorStars';
 
 const Markets: React.FC = () => {
   const { user, logout, isDemoMode, toggleDemoMode, liveFeed, fetchLiveFeed, forceBuy, isLoading, uiMessage } = useCarbonStore();
   const navigate = useNavigate();
+  const { open } = useWeb3Modal();
+  const { isConnected } = useAccount();
 
   const [buyingId, setBuyingId] = useState<string | null>(null);
   const [buyStatus, setBuyStatus] = useState<string>('Preparing');
@@ -71,38 +75,60 @@ const Markets: React.FC = () => {
 
       {/* Toast Notification (from Store) */}
       {uiMessage && (
-        <div className={`fixed top-24 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded-full text-sm font-bold shadow-xl z-50 transition-all ${uiMessage.type === 'success' ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'}`}>
-          {uiMessage.text}
+        <div className={`fixed top-24 left-1/2 transform -translate-x-1/2 px-8 py-4 rounded-3xl text-sm font-black shadow-[0_20px_50px_rgba(0,0,0,0.2)] z-50 transition-all border ${uiMessage.type === 'success' ? 'bg-emerald-500 border-emerald-400 text-white' : 'bg-red-500 border-red-400 text-white'}`}>
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-lg">{uiMessage.type === 'success' ? 'check_circle' : 'error'}</span>
+            {uiMessage.text}
+          </div>
         </div>
       )}
-      {/* TopAppBar */}
-      <header className="sticky top-0 z-40 bg-slate-50/70 dark:bg-slate-900/70 backdrop-blur-xl flex justify-between items-center w-full px-6 pt-4 pb-2">
-        <div className="flex items-center gap-3">
-          <button onClick={() => navigate('/dashboard')} className="p-2 hover:bg-surface-container rounded-full">
-            <span className="material-symbols-outlined">arrow_back</span>
+      {/* TopAppBar - Premium Glassmorphism */}
+      <header className="sticky top-0 z-50 bg-white/70 dark:bg-slate-900/80 backdrop-blur-2xl border-b border-emerald-500/10 flex justify-between items-center w-full px-6 py-4">
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={() => navigate('/dashboard')} 
+            className="w-10 h-10 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center hover:bg-emerald-500 hover:text-white transition-all group"
+          >
+            <span className="material-symbols-outlined text-xl group-hover:scale-110 transition-transform">arrow_back</span>
           </button>
-          <img 
-            src="https://raw.githubusercontent.com/Tvwap/Tvimage/main/psl.png" 
-            alt="PSL Logo" 
-            className="w-10 h-10 object-contain" 
-            onError={(e) => {
-              (e.target as HTMLImageElement).src = "https://upload.wikimedia.org/wikipedia/commons/d/d4/Pakistan_Super_League_X.png";
-            }}
-          />
-          <span className="font-headline font-semibold text-emerald-600 dark:text-emerald-400 tracking-tighter text-xl">
-            PSL Carbon Markets
-          </span>
+          
+          <div className="h-8 w-px bg-emerald-500/10 mx-1"></div>
+
+          <div className="flex items-center gap-3">
+            <img 
+              src="/psl_giants.png" 
+              alt="PSL Giants" 
+              className="w-10 h-10 object-contain drop-shadow-[0_5px_15px_rgba(16,185,129,0.2)]" 
+            />
+            <div className="flex flex-col">
+              <span className="font-headline font-black text-emerald-950 dark:text-emerald-50 tracking-tight text-xl leading-none">
+                Carbon Markets
+              </span>
+              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-emerald-500 mt-1">
+                PSL Sentinel Protocol
+              </span>
+            </div>
+          </div>
         </div>
+
         <div className="flex gap-3 items-center">
           <button 
             onClick={toggleDemoMode}
-            className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${isDemoMode ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20' : 'bg-surface-container-low border border-outline/10 text-on-surface-variant'}`}
+            className={`px-4 py-1.5 rounded-2xl text-[10px] uppercase font-black tracking-widest transition-all border shadow-sm ${isDemoMode ? 'bg-amber-500 text-white border-amber-400' : 'bg-slate-100 dark:bg-slate-800 border-emerald-500/10 text-slate-500'}`}
           >
-            {isDemoMode ? 'Demo' : 'Live'}
+            {isDemoMode ? 'Sandbox' : 'Live'}
+          </button>
+          {/* Restored Wallet Button */}
+          <button 
+            onClick={() => open()}
+            className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 border border-emerald-500/10 px-4 py-1.5 rounded-2xl text-[10px] uppercase font-black tracking-widest hover:border-emerald-500/30 transition-all"
+          >
+            <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-slate-400'} animate-pulse`}></span>
+            {isConnected ? 'Wallet' : 'Connect'}
           </button>
           <button 
             onClick={() => { logout(); navigate('/'); }}
-            className="text-xs font-medium text-error hover:underline"
+            className="px-4 py-1.5 rounded-2xl text-[10px] uppercase font-black tracking-widest text-red-500 hover:bg-red-500/5 transition-colors"
           >
             Logout
           </button>

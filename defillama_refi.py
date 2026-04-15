@@ -1,6 +1,6 @@
 import requests
 
-# DefiLlama public API — no key required
+# DefiLlama public API - no key required
 POOLS_URL = "https://yields.llama.fi/pools"
 COINS_URL = "https://coins.llama.fi/prices/current"
 

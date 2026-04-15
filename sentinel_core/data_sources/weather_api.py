@@ -114,4 +114,4 @@ class WeatherAPIClient:
 if __name__ == "__main__":
     client = WeatherAPIClient()
     result = client.get_current_weather(24.8959, 67.0936)
-    print(f"Weather: {result['weather_main']}, Temp: {result['temperature_c']}°C")
+    print(f"Weather: {result['weather_main']}, Temp: {result['temperature_c']} degC")

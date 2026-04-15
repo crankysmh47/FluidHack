@@ -6,7 +6,7 @@ WireFluid Testnet (Chain ID: 92533) using web3.py.
 Required env vars:
   WIREFLUID_TESTNET_RPC_URL   (default: https://evm.wirefluid.com)
   HASH_VAULT_ADDRESS          The deployed HashVault address
-  DEPLOYER_PRIVATE_KEY        Wallet private key — no 0x prefix
+  DEPLOYER_PRIVATE_KEY        Wallet private key - no 0x prefix
 """
 import os
 import sys
@@ -17,7 +17,7 @@ from dotenv import load_dotenv
 
 load_dotenv(override=True)
 
-# ── Full ABI for HashVault ────────────────────────────────────────────────────
+# -- Full ABI for HashVault ----------------------------------------------------
 HASH_VAULT_ABI = [
     {
         "inputs": [
@@ -134,7 +134,7 @@ def call_hash_vault(
     balance_wire = w3.from_wei(balance_wei, "ether")
     print(f"[ContractCaller] Balance  : {balance_wire:.6f} WIRE")
     if balance_wire < 0.01:
-        print("[ContractCaller] ⚠️  Low balance — get more from the WireFluid faucet!")
+        print("[ContractCaller] [WARN]  Low balance - get more from the WireFluid faucet!")
 
     last_error = None
     for attempt in range(max_retries):
@@ -195,7 +195,7 @@ def call_hash_vault(
             }
 
         except Exception as e:
-            print(f"[ContractCaller] ⚠️  Attempt {attempt+1} failed: {e}")
+            print(f"[ContractCaller] [WARN]  Attempt {attempt+1} failed: {e}")
             last_error = e
             # Exponential backoff
             time.sleep(2 ** attempt)
@@ -206,7 +206,7 @@ def call_hash_vault(
 
 
 if __name__ == "__main__":
-    # Quick connectivity test (read-only — no broadcast)
+    # Quick connectivity test (read-only - no broadcast)
     print("=== HashVault Connectivity Test ===")
     try:
         w3 = _build_web3()
@@ -223,7 +223,7 @@ if __name__ == "__main__":
             print(f"  executionCount    : {count}")
             print(f"  remainingExecutions: {remaining}")
         else:
-            print("HASH_VAULT_ADDRESS not set — skipping contract read")
+            print("HASH_VAULT_ADDRESS not set - skipping contract read")
     except Exception as e:
         print(f"[ERROR] {e}")
         sys.exit(1)

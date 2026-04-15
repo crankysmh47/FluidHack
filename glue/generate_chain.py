@@ -27,7 +27,7 @@ def generate_keccak_chain(seed: bytes, length: int = 1000):
     with open("glue/hash_chain.json", "w") as f:
         json.dump(data, f, indent=4)
     
-    print(f"✅ Keccak-256 Hash Chain Generated!")
+    print(f"[OK] Keccak-256 Hash Chain Generated!")
     print(f"ROOT HASH (For Track 1): 0x{reversed_chain[0]}")
     print(f"Preimages saved to: glue/hash_chain.json")
 

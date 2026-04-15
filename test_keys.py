@@ -8,13 +8,13 @@ def test_api_keys():
     results = {}
     print("Beginning API Key Tests...")
     
-    # 1. Supabase
+    # 1. Supabase - use service key for /rest/v1/ (anon key returns 401 there by design)
     supabase_url = os.environ.get("SUPABASE_URL")
-    supabase_key = os.environ.get("SUPABASE_KEY")
-    if supabase_url and supabase_key:
+    supabase_svc_key = os.environ.get("SUPABASE_SERVICE_KEY") or os.environ.get("SUPABASE_KEY")
+    if supabase_url and supabase_svc_key:
         try:
-            res = requests.get(f"{supabase_url}/rest/v1/", headers={"apikey": supabase_key, "Authorization": f"Bearer {supabase_key}"})
-            results["Supabase"] = "OK" if res.status_code in [200, 400, 404] else f"Error {res.status_code}"
+            res = requests.get(f"{supabase_url}/rest/v1/", headers={"apikey": supabase_svc_key, "Authorization": f"Bearer {supabase_svc_key}"})
+            results["Supabase"] = "OK" if res.status_code in [200, 400, 404] else f"Error {res.status_code}: {res.text[:80]}"
         except Exception as e:
             results["Supabase"] = f"Failed: {e}"
     else:
@@ -68,9 +68,9 @@ def test_api_keys():
     print("\n--- API Key Diagnostics ---")
     for key, status in results.items():
         if status == "OK":
-            print(f"✅ {key}: {status}")
+            print(f"[OK] {key}: {status}")
         else:
-            print(f"❌ {key}: {status}")
+            print(f"[X] {key}: {status}")
 
 if __name__ == "__main__":
     test_api_keys()

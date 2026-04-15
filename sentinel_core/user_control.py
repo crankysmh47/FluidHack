@@ -1,5 +1,5 @@
 """
-User Control Layer — Carbon Sentinel
+User Control Layer - Carbon Sentinel
 Gives users complete authority over the AI agent's behavior:
   - Budget and per-transaction limits
   - Enable/disable the agent (kill-switch / revocation)
@@ -22,7 +22,7 @@ load_dotenv()
 # Allow importing from sibling/parent directories
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-# ── Local Config Fallback ───────────────────────────────────────────────────
+# == Local Config Fallback ===================================================
 LOCAL_CONFIG_DIR = Path(os.path.dirname(os.path.abspath(__file__))).parent / "glue" / "user_configs"
 LOCAL_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -48,7 +48,7 @@ def _save_local_config(user_id: str, config: dict):
         print(f"[UserControl] [!] Failed to save local config: {e}")
 
 
-# ── Supabase helper ───────────────────────────────────────────────────────────
+# == Supabase helper ===========================================================
 
 def _get_supabase():
     """Return a Supabase client, or None if not configured."""
@@ -64,7 +64,7 @@ def _get_supabase():
         return None
 
 
-# ── Data model defaults ───────────────────────────────────────────────────────
+# == Data model defaults =======================================================
 
 DEFAULT_CONFIG = {
     "budget_usd": 50.0,
@@ -79,7 +79,7 @@ DEFAULT_CONFIG = {
 }
 
 
-# ── Public API ────────────────────────────────────────────────────────────────
+# == Public API ================================================================
 
 def get_user_config(user_id: str) -> dict:
     """
@@ -142,7 +142,7 @@ def update_user_config(user_id: str, **fields) -> dict:
 
     sb = _get_supabase()
     if not sb:
-        print("[UserControl] Supabase not configured — config updated locally.")
+        print("[UserControl] Supabase not configured - config updated locally.")
         return updated
 
     try:
@@ -191,7 +191,7 @@ def record_spend(user_id: str, amount_usd: float) -> dict:
         return get_user_config(user_id)
 
 
-# ── Budget gate ───────────────────────────────────────────────────────────────
+# == Budget gate ===============================================================
 
 def check_budget_gate(user_id: str, proposed_spend_usd: float, bypass_limits: bool = False) -> tuple[bool, str]:
     """
@@ -238,7 +238,7 @@ def check_budget_gate(user_id: str, proposed_spend_usd: float, bypass_limits: bo
     return True, "OK"
 
 
-# ── Force Buy ─────────────────────────────────────────────────────────────────
+# == Force Buy =================================================================
 
 def request_force_buy(user_id: str, amount_usd: float, match_id: str = None) -> dict:
     """
@@ -316,7 +316,7 @@ def mark_force_buy_failed(force_buy_id: int, error: str):
         print(f"[UserControl] [!] mark_force_buy_failed: {e}")
 
 
-# ── Offset Stats ──────────────────────────────────────────────────────────────
+# == Offset Stats ==============================================================
 
 def get_total_offset_stats(user_id: str = None) -> dict:
     """
@@ -353,24 +353,54 @@ def get_total_offset_stats(user_id: str = None) -> dict:
 
 
 def get_user_ledger(user_id: str, limit: int = 50) -> list[dict]:
-    """Fetch full transaction history for a specific user from Supabase tx_log."""
+    """Fetch full transaction history for a specific user.
+    
+    Tries Supabase tx_log first, then falls back to local tx_hashes.jsonl.
+    """
+    records = []
+    
+    # 1. Try Supabase first
     sb = _get_supabase()
-    if not sb:
-        return []
-    try:
-        resp = sb.table("tx_log") \
-                 .select("*") \
-                 .eq("user_id", user_id) \
-                 .order("logged_at", desc=True) \
-                 .limit(limit) \
-                 .execute()
-        return resp.data or []
-    except Exception as e:
-        print(f"[UserControl] [!] get_user_ledger failed: {e}")
-        return []
+    if sb:
+        try:
+            resp = sb.table("tx_log") \
+                     .select("*") \
+                     .eq("user_id", user_id) \
+                     .order("logged_at", desc=True) \
+                     .limit(limit) \
+                     .execute()
+            records = resp.data or []
+        except Exception as e:
+            print(f"[UserControl] [!] get_user_ledger Supabase failed: {e}")
+
+    # 2. Fallback to local tx_hashes.jsonl if Supabase returned nothing
+    if not records:
+        try:
+            local_log = Path(__file__).parent.parent / "tx_hashes.jsonl"
+            if local_log.exists():
+                all_records = []
+                with open(local_log, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if not line:
+                            continue
+                        try:
+                            rec = json.loads(line)
+                            # Filter by user_id if not 'system' (show all for system)
+                            if rec.get("user_id") == user_id or user_id == "system":
+                                all_records.append(rec)
+                        except json.JSONDecodeError:
+                            pass
+                # Sort newest first, apply limit
+                all_records.sort(key=lambda r: r.get("logged_at", ""), reverse=True)
+                records = all_records[:limit]
+        except Exception as e:
+            print(f"[UserControl] [!] get_user_ledger local fallback failed: {e}")
+
+    return records
 
 
-# ── CLI test ──────────────────────────────────────────────────────────────────
+# == CLI test ==================================================================
 
 if __name__ == "__main__":
     test_user = "0xTestUser001"
@@ -379,7 +409,7 @@ if __name__ == "__main__":
     print(f"Config: {cfg}")
 
     allowed, reason = check_budget_gate(test_user, 3.50)
-    print(f"Budget gate (3.50): {allowed} — {reason}")
+    print(f"Budget gate (3.50): {allowed} - {reason}")
 
     rb = request_force_buy(test_user, 2.0, match_id="PSL_2026_DEMO")
     print(f"Force-buy request: {rb}")

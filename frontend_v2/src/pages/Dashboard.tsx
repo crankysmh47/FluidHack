@@ -15,10 +15,20 @@ const Dashboard: React.FC = () => {
 
   const effectiveIsConnected = isConnected || isDemoMode;
 
-  const getPslMatchUrl = (home?: string, away?: string) => {
+  const getPslMatchUrl = (home?: string, away?: string, matchNum?: number) => {
     const h = (home || 'peshawar-zalmi').toLowerCase().replace(/\s+/g, '-');
     const a = (away || 'quetta-gladiators').toLowerCase().replace(/\s+/g, '-');
-    return `https://www.espncricinfo.com/series/pakistan-super-league-2026-1515734/${h}-vs-${a}-match/live-cricket-score`;
+    // Pattern: Match 23 = 1527574, Match 24 = 1527575
+    // Base ID for Match 23 is 1527574. Formula: 1527551 + matchNum
+    const id = matchNum && matchNum >= 1 ? 1527551 + matchNum : 1527574;
+    const matchPart = matchNum ? `${matchNum}${getOrdinalSuffix(matchNum)}-match-` : '';
+    return `https://www.espncricinfo.com/series/pakistan-super-league-2026-1515734/${h}-vs-${a}-${matchPart}${id}/live-cricket-score`;
+  };
+
+  const getOrdinalSuffix = (n: number) => {
+    const s = ["th", "st", "nd", "rd"],
+          v = n % 100;
+    return s[(v - 20) % 10] || s[v] || s[0];
   };
 
   const [isBuyModalOpen, setIsBuyModalOpen] = useState(false);
@@ -139,58 +149,68 @@ const Dashboard: React.FC = () => {
       {/* Cursor Stars */}
       <CursorStars />
       
-      {/* TopAppBar */}
-      <header className="sticky top-0 z-40 bg-slate-50/70 dark:bg-slate-900/70 backdrop-blur-xl flex justify-between items-center w-full px-6 pt-4 pb-2">
+      {/* TopAppBar - Premium Glassmorphism Redesign */}
+      <header className="sticky top-0 z-40 bg-white/70 dark:bg-slate-900/80 backdrop-blur-2xl border-b border-emerald-500/10 flex justify-between items-center w-full px-6 py-4 transition-all">
         {/* Toast Notification */}
         {uiMessage && (
-          <div className={`fixed top-20 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded-full text-sm font-bold shadow-xl z-50 transition-all ${uiMessage.type === 'success' ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'}`}>
-            {uiMessage.text}
+          <div className={`fixed top-24 left-1/2 transform -translate-x-1/2 px-8 py-4 rounded-3xl text-sm font-black shadow-[0_20px_50px_rgba(0,0,0,0.2)] z-50 transition-all border ${uiMessage.type === 'success' ? 'bg-emerald-500 border-emerald-400 text-white' : 'bg-red-500 border-red-400 text-white'}`}>
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-lg">{uiMessage.type === 'success' ? 'check_circle' : 'error'}</span>
+              {uiMessage.text}
+            </div>
           </div>
         )}
 
-        <div className="flex items-center gap-4">
-          <img 
-            src="https://raw.githubusercontent.com/Tvwap/Tvimage/main/psl.png" 
-            alt="PSL Logo" 
-            className="w-12 h-12 object-contain" 
-            onError={(e) => {
-              (e.target as HTMLImageElement).src = "https://upload.wikimedia.org/wikipedia/commons/d/d4/Pakistan_Super_League_X.png";
-            }}
-          />
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-secondary-container flex items-center justify-center overflow-hidden">
-              <span className="font-headline font-bold text-primary-container">{user?.name.charAt(0).toUpperCase()}</span>
+        <div className="flex items-center gap-5">
+          <div className="relative group cursor-pointer" onClick={() => navigate('/dashboard')}>
+            <div className="absolute inset-0 bg-emerald-500/20 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            <img 
+              src="/psl_giants.png" 
+              alt="PSL Giants" 
+              className="w-14 h-14 object-contain relative z-10 drop-shadow-[0_5px_15px_rgba(16,185,129,0.2)]" 
+            />
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center shadow-lg border border-emerald-400/30">
+              <span className="font-headline font-black text-white text-lg">{user?.name.charAt(0).toUpperCase()}</span>
             </div>
             <div className="flex flex-col">
-              <span className="font-headline font-semibold text-emerald-600 dark:text-emerald-400 tracking-tighter text-xl leading-none">
-                {user?.name}'s Dashboard
-              </span>
-              <div className="flex items-center gap-1.5 mt-1">
-                <span className={`w-1.5 h-1.5 rounded-full ${isPaymentAuthorized && isAgentActive ? 'bg-emerald-500 animate-pulse' : 'bg-red-400'}`}></span>
-                <span className={`text-[10px] font-bold uppercase tracking-wider ${isPaymentAuthorized && isAgentActive ? 'text-emerald-500' : 'text-red-400'}`}>
-                  {isPaymentAuthorized && isAgentActive ? 'Agent Online' : 'Agent Offline'}
+              <h2 className="font-headline font-black text-emerald-950 dark:text-emerald-50 tracking-tight text-xl leading-none">
+                Sentinel Dashboard
+              </h2>
+              <div className="flex items-center gap-2 mt-1">
+                <div className={`w-2 h-2 rounded-full ${isPaymentAuthorized && isAgentActive ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)] animate-pulse' : 'bg-red-500'}`}></div>
+                <span className={`text-[9px] font-black uppercase tracking-[0.2em] ${isPaymentAuthorized && isAgentActive ? 'text-emerald-500' : 'text-red-500'}`}>
+                  {isPaymentAuthorized && isAgentActive ? 'Protocol Active' : 'Sentinel Standby'}
                 </span>
               </div>
             </div>
           </div>
         </div>
-        <div className="flex gap-4 items-center">
+
+        <div className="flex gap-3 items-center">
           <button 
             onClick={toggleDemoMode}
-            className={`flex items-center gap-2 border px-3 py-1 rounded-full text-xs font-semibold transition-colors ${isDemoMode ? 'bg-amber-500/10 border-amber-500/30 text-amber-600 font-bold' : 'bg-surface-container-low border-outline/20 hover:bg-surface-container text-on-surface'}`}
+            className={`hidden md:flex items-center gap-2.5 px-5 py-2 rounded-2xl text-[10px] uppercase font-black tracking-widest transition-all border shadow-sm ${isDemoMode ? 'bg-amber-500 text-white border-amber-400' : 'bg-emerald-600 text-white border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.2)]'}`}
           >
-            {isDemoMode ? 'Demo Mode On' : 'Live Mode'}
+            <span className={`w-1.5 h-1.5 rounded-full ${isDemoMode ? 'bg-white animate-pulse' : 'bg-emerald-400'}`}></span>
+            {isDemoMode ? 'Sandbox Active' : 'Live Network'}
           </button>
+
+          {/* Restored Wallet Button */}
           <button 
             onClick={() => open()}
-            className="flex items-center gap-2 bg-surface-container-low border border-outline/20 px-3 py-1 rounded-full text-xs font-semibold hover:bg-surface-container transition-colors"
+            className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-[10px] uppercase font-black tracking-widest transition-all border shadow-sm ${isConnected ? 'bg-emerald-600 text-white border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.2)]' : 'bg-slate-100 dark:bg-slate-800 border-emerald-500/10 text-slate-500 dark:text-white hover:border-emerald-500/30'}`}
           >
-            <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
-            {isConnected ? 'Wallet Connected' : 'Connect Wallet'}
+            <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]' : 'bg-slate-400'} animate-pulse`}></span>
+            {isConnected ? 'Wallet' : 'Connect'}
           </button>
+          
+          <div className="h-8 w-px bg-emerald-500/10 mx-1 hidden md:block"></div>
+
           <button 
             onClick={() => { logout(); navigate('/'); }}
-            className="text-xs font-medium text-error hover:underline"
+            className="px-5 py-2 rounded-2xl text-[10px] uppercase font-black tracking-widest text-red-500 hover:bg-red-500/5 transition-colors border border-transparent hover:border-red-500/20"
           >
             Logout
           </button>
@@ -225,10 +245,10 @@ const Dashboard: React.FC = () => {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {[
-              { id: 'bct', name: 'Base Carbon', desc: 'Verified Tonnes', fallback: '18.42', color: 'primary' },
-              { id: 'mco2', name: 'Moss Carbon', desc: 'Amazon Protection', fallback: '12.15', color: 'emerald-600' },
-              { id: 'nct', name: 'Nature Carbon', desc: 'Nature Based', fallback: '22.10', color: 'amber-600' },
-              { id: 'ubo', name: 'Universal Offset', desc: 'Basic Offset', fallback: '4.50', color: 'blue-500' }
+              { id: 'bct', name: 'Base Carbon', desc: 'Verified Tonnes', fallback: '0.65', color: 'primary' },
+              { id: 'mco2', name: 'Moss Carbon', desc: 'Amazon Protection', fallback: '1.25', color: 'emerald-600' },
+              { id: 'nct', name: 'Nature Carbon', desc: 'Nature Based', fallback: '0.70', color: 'amber-600' },
+              { id: 'ubo', name: 'Universal Offset', desc: 'Basic Offset', fallback: '0.45', color: 'blue-500' }
             ].map(token => (
               <div key={token.id} className="bg-surface-container-lowest p-4 rounded-2xl border border-outline-variant/10 shadow-sm flex justify-between items-center hover:border-primary/20 transition-all cursor-pointer" onClick={() => navigate('/markets')}>
                 <div className="flex items-center gap-3">
@@ -307,7 +327,7 @@ const Dashboard: React.FC = () => {
                   </div>
                   <div className="mt-auto text-center flex justify-center relative z-20">
                     <a 
-                      href={getPslMatchUrl(liveFeed?.sports?.match?.home_team, liveFeed?.sports?.match?.away_team)} 
+                      href={getPslMatchUrl(liveFeed?.sports?.match?.home_team, liveFeed?.sports?.match?.away_team, liveFeed?.sports?.match?.match_number)} 
                       target="_blank" 
                       rel="noreferrer" 
                       className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 px-3 py-1.5 rounded-full transition-colors cursor-pointer pointer-events-auto"
@@ -330,11 +350,11 @@ const Dashboard: React.FC = () => {
                   <div className="text-center mb-6">
                     <p className="text-[10px] uppercase tracking-widest text-on-surface-variant mb-2">Next Match</p>
                     <p className="font-headline font-bold text-xl">{liveFeed?.sports?.match?.home_team || 'Team A'} vs {liveFeed?.sports?.match?.away_team || 'Team B'}</p>
-                    <p className="text-xs text-on-surface-variant mt-1">{liveFeed?.sports?.match?.date ? new Date(liveFeed.sports.match.date).toLocaleString([], {hour: '2-digit', minute:'2-digit'}) : 'TBD'}</p>
+                    <p className="text-xs text-on-surface-variant mt-1">{liveFeed?.sports?.match?.dateTimeGMT ? new Date(liveFeed.sports.match.dateTimeGMT + "Z").toLocaleString([], {hour: '2-digit', minute:'2-digit'}) : 'TBD'}</p>
                   </div>
                   <div className="mt-auto text-center flex justify-center relative z-20">
                     <a 
-                      href={getPslMatchUrl(liveFeed?.sports?.match?.home_team, liveFeed?.sports?.match?.away_team)} 
+                      href={getPslMatchUrl(liveFeed?.sports?.match?.home_team, liveFeed?.sports?.match?.away_team, liveFeed?.sports?.match?.match_number)} 
                       target="_blank" 
                       rel="noreferrer" 
                       className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 px-3 py-1.5 rounded-full transition-colors cursor-pointer pointer-events-auto"
@@ -401,76 +421,78 @@ const Dashboard: React.FC = () => {
 
         {/* Section: Last Agent Decision — Intelligence Feed */}
         <section className="md:col-span-12">
-          <div className="bg-gradient-to-r from-slate-50 to-emerald-50 dark:from-slate-900 dark:to-emerald-950/30 rounded-3xl p-6 border border-emerald-200/30 dark:border-emerald-800/30">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${lastAgentCycle?.running ? 'bg-amber-500/20 text-amber-600' : agentResult?.blocked ? 'bg-red-500/20 text-red-500' : agentResult ? 'bg-emerald-500/20 text-emerald-600' : 'bg-slate-200 dark:bg-slate-700 text-slate-500'}`}>
-                  <span className={`material-symbols-outlined text-lg ${lastAgentCycle?.running ? 'animate-spin' : ''}`}>
-                    {lastAgentCycle?.running ? 'progress_activity' : agentResult?.blocked ? 'block' : agentResult ? 'task_alt' : 'smart_toy'}
+          <div className="bg-slate-900 border border-emerald-500/30 rounded-[2rem] p-8 shadow-[0_20px_50px_rgba(0,0,0,0.3)] relative overflow-hidden group">
+            {/* High-tech Scanning Effect */}
+            <div className="absolute top-0 left-0 w-full h-1 bg-emerald-500/20 animate-scan pointer-events-none"></div>
+            
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-4">
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${lastAgentCycle?.running ? 'bg-amber-500/20 text-amber-400' : agentResult?.blocked ? 'bg-red-500/20 text-red-400' : agentResult ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/20' : 'bg-slate-800 text-slate-500'}`}>
+                  <span className={`material-symbols-outlined text-2xl ${lastAgentCycle?.running ? 'animate-spin' : ''}`}>
+                    {lastAgentCycle?.running ? 'progress_activity' : agentResult?.blocked ? 'block' : agentResult ? 'terminal' : 'smart_toy'}
                   </span>
                 </div>
                 <div>
-                  <h3 className="font-headline font-bold text-sm text-on-surface">Agent Intelligence Feed</h3>
-                  <p className="text-[10px] text-on-surface-variant">
-                    {lastAgentCycle?.running ? 'Analyzing grid load & computing decision...' 
-                      : agentResult ? `Last audit: ${formatCycleTime(lastAgentCycle.timestamp)}`
-                      : 'Awaiting first autonomous cycle'}
+                  <h3 className="font-headline font-black text-lg text-emerald-50 tracking-tight uppercase">Agent Intelligence Feed</h3>
+                  <p className="text-[10px] font-mono text-emerald-500/70 font-bold tracking-widest uppercase">
+                    {lastAgentCycle?.running ? 'SYSTEM ANALYZING DATA PATHS...' 
+                      : agentResult ? `LAST LOG: ${formatCycleTime(lastAgentCycle.timestamp)}`
+                      : 'SYSTEM INITIALIZED - AWAITING DATA'}
                   </p>
                 </div>
               </div>
               {agentResult?.is_surge_event && (
-                <span className="bg-amber-500 text-white text-[9px] font-bold px-3 py-1 rounded-full animate-pulse">⚡ SURGE DETECTED</span>
+                <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/50 px-4 py-1.5 rounded-full animate-pulse shadow-[0_0_15px_rgba(245,158,11,0.3)]">
+                  <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                  <span className="text-amber-500 text-[10px] font-black tracking-widest uppercase">Surge Event Detected</span>
+                </div>
               )}
             </div>
 
             {agentResult && !agentResult.error ? (
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                <div className="bg-white/60 dark:bg-slate-800/60 rounded-xl p-3 border border-outline-variant/10">
-                  <p className="text-[9px] uppercase tracking-widest text-on-surface-variant font-bold mb-1">Event Type</p>
-                  <p className="font-headline font-bold text-sm text-on-surface">
-                    {agentResult.is_surge_event ? (agentResult.metadata?.event_type === 'peak' ? '🔴 Peak Load' : '⚡ Grid Surge') : '🟢 Normal'}
-                  </p>
-                </div>
-                <div className="bg-white/60 dark:bg-slate-800/60 rounded-xl p-3 border border-outline-variant/10">
-                  <p className="text-[9px] uppercase tracking-widest text-on-surface-variant font-bold mb-1">Footprint</p>
-                  <p className="font-headline font-bold text-sm text-on-surface">
-                    {agentResult.calculated_footprint_kg?.toFixed(1) || '—'} <span className="text-[9px] font-normal">kg CO₂</span>
-                  </p>
-                </div>
-                <div className="bg-white/60 dark:bg-slate-800/60 rounded-xl p-3 border border-outline-variant/10">
-                  <p className="text-[9px] uppercase tracking-widest text-on-surface-variant font-bold mb-1">Amount</p>
-                  <p className={`font-headline font-bold text-sm ${agentResult.blocked ? 'text-red-500' : 'text-emerald-600'}`}>
-                    ${agentResult.amount_usd?.toFixed(4) || '—'}
-                    {agentResult.capped_to_remaining && <span className="text-[8px] text-amber-500 ml-1">(capped)</span>}
-                  </p>
-                </div>
-                <div className="bg-white/60 dark:bg-slate-800/60 rounded-xl p-3 border border-outline-variant/10">
-                  <p className="text-[9px] uppercase tracking-widest text-on-surface-variant font-bold mb-1">Token</p>
-                  <p className="font-headline font-bold text-sm text-on-surface">
-                    {agentResult.metadata?.token_symbol || 'BCT'}
-                  </p>
-                </div>
-                <div className="bg-white/60 dark:bg-slate-800/60 rounded-xl p-3 border border-outline-variant/10">
-                  <p className="text-[9px] uppercase tracking-widest text-on-surface-variant font-bold mb-1">Status</p>
-                  <p className={`font-headline font-bold text-sm ${agentResult.blocked ? 'text-red-500' : 'text-emerald-600'}`}>
-                    {agentResult.blocked ? '✗ Blocked' : '✓ Executed'}
-                  </p>
-                  {agentResult.blocked_reason && (
-                    <p className="text-[8px] text-red-400 mt-0.5">{agentResult.blocked_reason.substring(0, 40)}</p>
-                  )}
-                </div>
+              <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+                {[
+                  { label: 'Event Type', value: agentResult.is_surge_event ? (agentResult.metadata?.event_type === 'peak' ? 'Peak Load' : 'Grid Surge') : 'Normal', color: agentResult.is_surge_event ? 'text-amber-400' : 'text-emerald-400' },
+                  { label: 'Calculated Footprint', value: `${agentResult.calculated_footprint_kg?.toFixed(1) || '—'} kg CO₂`, color: 'text-white' },
+                  { label: 'Settlement Amount', value: `$${agentResult.amount_usd?.toFixed(4) || '—'}`, color: agentResult.blocked ? 'text-red-400' : 'text-emerald-400' },
+                  { label: 'Protocol Token', value: agentResult.metadata?.token_symbol || 'BCT', color: 'text-white' },
+                  { label: 'Resolution Status', value: agentResult.blocked ? 'Rejected' : 'Executed', color: agentResult.blocked ? 'text-red-400' : 'text-emerald-400' },
+                ].map((item, i) => (
+                  <div key={i} className="bg-slate-800/50 backdrop-blur-sm border border-emerald-500/10 rounded-2xl p-4 group-hover:border-emerald-500/20 transition-all">
+                    <p className="text-[9px] font-mono font-bold text-emerald-500/40 uppercase tracking-widest mb-2">{item.label}</p>
+                    <p className={`font-headline font-black text-base tracking-tight ${item.color}`}>
+                      {item.value}
+                    </p>
+                  </div>
+                ))}
               </div>
             ) : agentResult?.error ? (
-              <div className="bg-red-50 dark:bg-red-900/20 rounded-xl p-4 border border-red-200 dark:border-red-800/30">
-                <p className="text-sm text-red-600 dark:text-red-400 font-medium">Agent Error: {agentResult.error}</p>
+              <div className="bg-red-500/5 border border-red-500/30 rounded-2xl p-6 flex items-center gap-4">
+                <span className="material-symbols-outlined text-red-500 text-3xl">report_problem</span>
+                <div>
+                  <p className="text-red-400 font-bold text-sm">System Malfunction Detected</p>
+                  <p className="text-red-400/70 text-xs font-mono">{agentResult.error}</p>
+                </div>
               </div>
             ) : (
-              <div className="bg-white/40 dark:bg-slate-800/40 rounded-xl p-4 border border-outline-variant/10 text-center">
-                <p className="text-sm text-on-surface-variant">
-                  {isPaymentAuthorized && isAgentActive 
-                    ? `Agent is monitoring. Next autonomous cycle in ${countdown}.`
-                    : 'Authorize the agent to begin autonomous carbon monitoring.'}
-                </p>
+              <div className="bg-slate-800/30 border border-emerald-500/5 rounded-2xl p-10 text-center relative overflow-hidden group">
+                {/* Background Grid Lines */}
+                <div className="absolute inset-0 opacity-5 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, #10b981 1px, transparent 0)', backgroundSize: '24px 24px' }}></div>
+                <div className="relative z-10">
+                  <div className="mb-4 flex justify-center">
+                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></div>
+                  </div>
+                  <p className="text-emerald-100/90 font-headline font-medium text-base mb-2">
+                    {isPaymentAuthorized && isAgentActive 
+                      ? 'Sentinel node monitoring network traffic logs...'
+                      : 'Awaiting Authorization Protocol...'}
+                  </p>
+                  <p className="text-emerald-500/60 font-mono text-[10px] tracking-[0.2em] uppercase font-bold">
+                    {isPaymentAuthorized && isAgentActive 
+                      ? `Targeting next cycle in ${countdown}`
+                      : 'STANDBY: AGENT NOT AUTHORIZED'}
+                  </p>
+                </div>
               </div>
             )}
           </div>
@@ -478,64 +500,36 @@ const Dashboard: React.FC = () => {
 
         {/* Section: Sentinel Impact Pulse */}
         <section className="md:col-span-12">
-          <div className="bg-gradient-to-br from-slate-900 to-slate-800 dark:from-emerald-950 dark:to-slate-950 rounded-[2.5rem] p-8 text-white shadow-2xl relative overflow-hidden group">
-            {/* Decorative Pulse Ring */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] border border-white/5 rounded-full animate-ping pointer-events-none"></div>
+          <div className="bg-gradient-to-br from-emerald-950 to-slate-950 rounded-[3rem] p-10 text-white shadow-2xl relative overflow-hidden group border border-emerald-500/20">
+            {/* Decorative Background Glows */}
+            <div className="absolute -top-24 -left-24 w-64 h-64 bg-emerald-500/10 rounded-full blur-[80px] pointer-events-none"></div>
+            <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-emerald-400/10 rounded-full blur-[80px] pointer-events-none"></div>
             
-            <div className="relative z-10 grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
-              {/* Impact Narrative */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-400/80">Network Sentinel Impact</span>
+            <div className="relative z-10 flex flex-col items-center text-center">
+              <div className="flex flex-col items-center gap-3 mb-6">
+                <div className="flex items-center gap-2 px-4 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full shadow-[0_0_15px_rgba(16,185,129,0.1)]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                  <span className="text-[10px] font-black uppercase tracking-[0.3em] text-emerald-400/80">Network Sentinel Impact</span>
                 </div>
-                <h3 className="text-4xl font-headline font-extrabold tracking-tighter">
-                  {Math.floor(globalTotalOffset * 50)} <span className="text-emerald-400">Tree Years</span>
+              </div>
+              
+              <div className="space-y-4 max-w-2xl">
+                <h3 className="text-6xl md:text-8xl font-headline font-black tracking-tighter leading-tight">
+                  <span className="text-white drop-shadow-sm">{Math.floor(globalTotalOffset * 50)}</span>
+                  <span className="text-emerald-400 block mt-2 text-4xl md:text-5xl uppercase tracking-widest text-shadow-glow">Tree Years</span>
                 </h3>
-                <p className="text-slate-400 text-sm leading-relaxed max-w-xs">
-                  The Sentinel Network has collectively offset the equivalent of {(globalTotalOffset * 50).toFixed(0)} full years of a mature tree's carbon sequestration capacity.
+                
+                <div className="h-px w-24 bg-gradient-to-r from-transparent via-emerald-500/30 to-transparent mx-auto my-8"></div>
+                
+                <p className="text-emerald-100/50 text-base md:text-lg leading-relaxed font-medium">
+                  The Sentinel Network has collectively offset the equivalent of <span className="text-emerald-400 font-bold">{(globalTotalOffset * 50).toFixed(0)} full years</span> of a mature tree's carbon sequestration capacity across the Pakistan Super League ecosystem.
                 </p>
               </div>
 
-              {/* Live Vitals Gauge */}
-              <div className="flex flex-col items-center justify-center border-l border-r border-white/10 px-8">
-                <div className="w-32 h-32 rounded-full border-4 border-emerald-500/20 flex items-center justify-center relative">
-                   <div className="absolute inset-0 rounded-full border-4 border-emerald-500 border-t-transparent animate-[spin_3s_linear_infinite]"></div>
-                   <div className="text-center">
-                     <p className="text-2xl font-headline font-black text-emerald-400">98%</p>
-                     <p className="text-[8px] uppercase font-bold text-white/40">Trust Factor</p>
-                   </div>
-                </div>
-                <div className="mt-4 flex flex-col items-center">
-                  <p className="text-[10px] font-bold text-white/60 mb-1">NETWORK STATUS</p>
-                  <p className="text-xs font-mono text-emerald-500">WIREFLUID_ACTIVE</p>
-                </div>
-              </div>
-
-              {/* Cycle Orchestrator */}
-              <div className="space-y-6">
-                 <div>
-                   <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-2">Next Audit Cycle</p>
-                   <div className="flex items-center gap-4">
-                     <div className="flex-1 bg-white/5 h-2 rounded-full overflow-hidden">
-                       <div className="bg-emerald-500 h-full transition-all duration-1000" style={{ width: `${cycleProgress}%` }}></div>
-                     </div>
-                     <span className="text-xs font-mono font-bold text-emerald-400">{countdown}</span>
-                   </div>
-                 </div>
-                 
-                 <div className="flex flex-col gap-2">
-                   <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Active Sentinel Protocol</p>
-                   <div className="flex gap-2">
-                     <span className="bg-emerald-500/20 text-emerald-400 text-[9px] font-bold px-2 py-1 rounded border border-emerald-500/30">L1_EMISSIONS</span>
-                     <span className="bg-blue-500/20 text-blue-400 text-[9px] font-bold px-2 py-1 rounded border border-blue-500/30">SPORTS_TRIG</span>
-                     <span className="bg-amber-500/20 text-amber-400 text-[9px] font-bold px-2 py-1 rounded border border-amber-500/30">STORM_GATE</span>
-                   </div>
-                 </div>
-
-                 <button onClick={() => navigate('/history')} className="w-full bg-white/10 hover:bg-white/20 transition-all py-3 rounded-xl text-xs font-bold border border-white/5 backdrop-blur-sm">
-                   View Full Sentinel Ledger
-                 </button>
+              <div className="mt-12 w-full max-w-xs">
+                <button onClick={() => navigate('/history')} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white transition-all py-4 px-8 rounded-2xl text-xs font-black uppercase tracking-widest shadow-xl border border-emerald-400/20 active:scale-95">
+                  Explore Sentinel Ledger
+                </button>
               </div>
             </div>
           </div>

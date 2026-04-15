@@ -4,9 +4,9 @@ Determines which preimage from hash_chain.json to submit next,
 by querying the live executionCount from the HashVault contract on-chain.
 
 Hash-chain logic:
-  - hash_chain.json["rootHash"]    → locked in contract at deploy time
-  - hash_chain.json["preimages"][0] → submitted on execution #0
-  - hash_chain.json["preimages"][n] → submitted on execution #n
+  - hash_chain.json["rootHash"]    ? locked in contract at deploy time
+  - hash_chain.json["preimages"][0] ? submitted on execution #0
+  - hash_chain.json["preimages"][n] ? submitted on execution #n
   Contract verifies: keccak256(preimage[n]) == currentHash before advancing.
 """
 import json
@@ -23,7 +23,7 @@ load_dotenv(override=True)
 CHAIN_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "hash_chain.json")
 CACHE_DB = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".cache.sqlite")
 
-# Minimal ABI — only what we need
+# Minimal ABI - only what we need
 _VAULT_ABI = [
     {
         "inputs": [],
@@ -88,8 +88,8 @@ def get_next_preimage() -> tuple[int, str]:
     Atomicly locks the index in SQLite to prevent concurrent double-spend.
 
     Raises:
-        ValueError  – chain exhausted or preimage out of sync
-        EnvironmentError – missing config
+        ValueError  - chain exhausted or preimage out of sync
+        EnvironmentError - missing config
     """
     init_db()
     w3 = _get_web3()

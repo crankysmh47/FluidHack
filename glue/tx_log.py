@@ -1,5 +1,5 @@
 """
-TX Log — Local Transaction Hash Ledger
+TX Log - Local Transaction Hash Ledger
 Every on-chain transaction hash is appended to `tx_hashes.jsonl` (local disk)
 and optionally mirrored to Supabase `tx_log` table.
 
@@ -18,14 +18,14 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# ── Config ────────────────────────────────────────────────────────────────────
+# -- Config --------------------------------------------------------------------
 # Stored in the project root (or wherever this script lives)
 _GLUE_DIR = Path(os.path.dirname(os.path.abspath(__file__)))
 _PROJECT_ROOT = _GLUE_DIR.parent
 TX_LOG_PATH = _PROJECT_ROOT / "tx_hashes.jsonl"
 
 
-# ── Core helpers ──────────────────────────────────────────────────────────────
+# -- Core helpers --------------------------------------------------------------
 
 def append_tx(
     tx_hash: str,
@@ -43,7 +43,7 @@ def append_tx(
     extra: dict = None,
 ) -> dict:
     """
-    Append a transaction record to tx_hashes.jsonl (JSONL format — one JSON per line).
+    Append a transaction record to tx_hashes.jsonl (JSONL format - one JSON per line).
     Also mirrors the record to Supabase `tx_log` table.
 
     Args:
@@ -82,15 +82,15 @@ def append_tx(
     if extra:
         record["extra"] = extra
 
-    # ── Write to local JSONL ─────────────────────────────────────────────────
+    # -- Write to local JSONL ------------------------------------------------=
     try:
         with open(TX_LOG_PATH, "a", encoding="utf-8") as f:
             f.write(json.dumps(record) + "\n")
-        print(f"[TXLog] 📁 Appended to {TX_LOG_PATH.name}: {tx_hash}")
+        print(f"[TXLog] [FILE] Appended to {TX_LOG_PATH.name}: {tx_hash}")
     except OSError as e:
-        print(f"[TXLog] ⚠️  Could not write to {TX_LOG_PATH}: {e}")
+        print(f"[TXLog] [WARN]  Could not write to {TX_LOG_PATH}: {e}")
 
-    # ── Mirror to Supabase tx_log ─────────────────────────────────────────────
+    # -- Mirror to Supabase tx_log --------------------------------------------=
     _mirror_to_supabase(record)
 
     return record
@@ -105,15 +105,16 @@ def _mirror_to_supabase(record: dict):
     try:
         from supabase import create_client
         sb = create_client(url, key)
-        # Remove None values so Supabase doesn't complain
-        row = {k: v for k, v in record.items() if v is not None and k != "extra"}
+        # Remove None values and columns that don't exist in Supabase schema
+        _SKIP_COLS = {"extra", "comment"}  # 'comment' column doesn't exist in tx_log table
+        row = {k: v for k, v in record.items() if v is not None and k not in _SKIP_COLS}
         sb.table("tx_log").upsert(row, on_conflict="tx_hash").execute()
-        print(f"[TXLog] ☁️  Mirrored to Supabase tx_log")
+        print(f"[TXLog] [CLOUD]  Mirrored to Supabase tx_log")
     except Exception as e:
-        print(f"[TXLog] ⚠️  Supabase mirror failed (local record safe): {e}")
+        print(f"[TXLog] [WARN]  Supabase mirror failed (local record safe): {e}")
 
 
-# ── Read helpers ──────────────────────────────────────────────────────────────
+# -- Read helpers --------------------------------------------------------------
 
 def read_all_txs() -> list[dict]:
     """Read all records from the local tx_hashes.jsonl file."""
@@ -153,7 +154,7 @@ def get_hashes_only() -> list[str]:
     return [r["tx_hash"] for r in read_all_txs() if r.get("tx_hash")]
 
 
-# ── CLI ───────────────────────────────────────────────────────────────────────
+# -- CLI ----------------------------------------------------------------------=
 
 if __name__ == "__main__":
     import argparse

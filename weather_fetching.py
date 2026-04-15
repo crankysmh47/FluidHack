@@ -49,7 +49,7 @@ try:
         
         # Format the output clearly for the console logs
         print(f"[{city_name.upper()}]")
-        print(f" -> Temp: {current_temp:.1f}°C | Feels Like: {feels_like:.1f}°C")
+        print(f" -> Temp: {current_temp:.1f} degC | Feels Like: {feels_like:.1f} degC")
         print(f" -> Status: {load_status}")
         print("-" * 60)
 

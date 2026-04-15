@@ -218,7 +218,10 @@ export const useCarbonStore = create<CarbonStore>()(
             set({ 
               lastFaucetClaim: Date.now(),
               isPaymentAuthorized: true,
-              isAgentActive: true
+              isAgentActive: true,
+              remainingBudget: 10000,
+              authorizedTxCount: 100,
+              remainingTxCount: 100
             });
             setUiMessage("✓ 10,000 USD added to your account", "success");
             await get().fetchStats();

@@ -1,7 +1,7 @@
 """
 WireFluid Payload Encoder (upgraded)
 Encodes a carbon offset decision into the bytes payload passed to
-HashVault.execute() → IWireFluid.route().
+HashVault.execute() ? IWireFluid.route().
 
 In stub mode (wireFluid = address(1)), this payload is ignored by the chain
 but is still correctly formed for when the real WireFluid router is provided.
@@ -27,10 +27,10 @@ def encode_wirefluid_payload(decision: dict) -> bytes:
         decision: The full decision dict from agent._build_decision(), which must include:
             - match_id (str)
             - calculated_footprint_kg (float)
-            - target_token (str)     — ERC-20 address
+            - target_token (str)     - ERC-20 address
             - source_chain (str)
             - dest_chain (str)
-            - amount_usdc_wei (int)  — USDC base units (6 decimals)
+            - amount_usdc_wei (int)  - USDC base units (6 decimals)
 
     Returns:
         ABI-encoded bytes
@@ -76,7 +76,7 @@ def decode_wirefluid_payload(payload: bytes) -> dict:
 
 
 if __name__ == "__main__":
-    # ── Test encode / decode round-trip ──────────────────────────────────────
+    # -- Test encode / decode round-trip --------------------------------------
     sample = {
         "match_id": "PSL_2026_01",
         "calculated_footprint_kg": 450.5,

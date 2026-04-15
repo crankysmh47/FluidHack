@@ -1,0 +1,16 @@
+C:\sem4\FluidHack\scratch\bulk_ascii_cleaner.py:6:     text = text.replace('\u2014', '-')\n
+C:\sem4\FluidHack\scratch\bulk_ascii_cleaner.py:7:     text = text.replace('\xb0', ' degC')\n
+C:\sem4\FluidHack\scratch\bulk_ascii_cleaner.py:8:     text = text.replace('\u251c\u2500\u2500', '|--')\n
+C:\sem4\FluidHack\scratch\bulk_ascii_cleaner.py:9:     text = text.replace('\u2514\u2500\u2500', '`--')\n
+C:\sem4\FluidHack\scratch\bulk_ascii_cleaner.py:10:     text = text.replace('\u2500\u2500', '--')\n
+C:\sem4\FluidHack\scratch\bulk_ascii_cleaner.py:11:     text = text.replace('\u2705', '[OK]')\n
+C:\sem4\FluidHack\scratch\bulk_ascii_cleaner.py:12:     text = text.replace('\u274c', '[X]')\n
+C:\sem4\FluidHack\scratch\bulk_ascii_cleaner.py:13:     text = text.replace('\U0001f680', '[START]')\n
+C:\sem4\FluidHack\scratch\bulk_ascii_cleaner.py:14:     text = text.replace('\U0001f514', '[ALERT]')\n
+C:\sem4\FluidHack\scratch\bulk_ascii_cleaner.py:15:     text = text.replace('\u26a0\ufe0f', '[WARN]')\n
+C:\sem4\FluidHack\scratch\bulk_ascii_cleaner.py:16:     text = text.replace('\u231b', '[WAIT]')\n
+C:\sem4\FluidHack\scratch\bulk_ascii_cleaner.py:17:     text = text.replace('\U0001f4c1', '[FILE]')\n
+C:\sem4\FluidHack\scratch\bulk_ascii_cleaner.py:18:     text = text.replace('\u2601\ufe0f', '[CLOUD]')\n
+C:\sem4\FluidHack\scratch\bulk_ascii_cleaner.py:19:     text = text.replace('\U0001f504', '[SYNC]')\n
+C:\sem4\FluidHack\scratch\bulk_ascii_cleaner.py:20:     text = text.replace('\u27a1', '->')\n
+C:\sem4\FluidHack\scratch\bulk_ascii_cleaner.py:21:     text = text.replace('\u2013', '-') # en-dash\n

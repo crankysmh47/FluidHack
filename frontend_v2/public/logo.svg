@@ -1,0 +1,50 @@
+<svg width="100" height="100" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Definitions for Gradients -->
+  <defs>
+    <!-- PSL Season 10 Emerald to Lime Gradient -->
+    <linearGradient id="psl-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#026838" />
+      <stop offset="100%" stop-color="#D7DF27" />
+    </linearGradient>
+    
+    <!-- WireFluid Purple to Pink Gradient -->
+    <linearGradient id="wf-gradient" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#F50043" />
+      <stop offset="50%" stop-color="#CD2FB3" />
+      <stop offset="100%" stop-color="#B64BF5" />
+    </linearGradient>
+
+    <!-- Subtle Shadow -->
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="2" />
+      <feOffset dx="1" dy="1" result="offsetblur" />
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.3" />
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Cricket Ball Base (Hexagonal Lattice Mask) -->
+  <circle cx="50" cy="55" r="35" fill="url(#psl-gradient)" filter="url(#shadow)" />
+  
+  <!-- Hexagonal Blockchain Grid (Tokens) -->
+  <g opacity="0.4" stroke="white" stroke-width="0.5">
+    <path d="M40 30l5-3 5 3v6l-5 3-5-3v-6zM50 35l5-3 5 3v6l-5 3-5-3v-6zM60 40l5-3 5 3v6l-5 3-5-3v-6zM35 45l5-3 5 3v6l-5 3-5-3v-6zM45 50l5-3 5 3v6l-5 3-5-3v-6zM55 55l5-3 5 3v6l-5 3-5-3v-6zM30 60l5-3 5 3v6l-5 3-5-3v-6zM40 65l5-3 5 3v6l-5 3-5-3v-6zM50 70l5-3 5 3v6l-5 3-5-3v-6z" />
+  </g>
+
+  <!-- WireFluid Ribbon (Ball Seam) -->
+  <path d="M15 55 Q 32.5 45, 50 55 T 85 55" stroke="url(#wf-gradient)" stroke-width="6" stroke-linecap="round" fill="none">
+    <animate attributeName="stroke-dasharray" from="0, 200" to="200, 0" dur="3s" repeatCount="indefinite" />
+  </path>
+  
+  <!-- Eco Sprout (Green Initiative) -->
+  <g transform="translate(45, 10) scale(0.6)">
+    <path d="M10 25 Q 10 0, 25 10 T 40 25 Q 25 40, 10 25" fill="#D7DF27" />
+    <path d="M10 25 L 25 10" stroke="#026838" stroke-width="2" stroke-linecap="round" />
+  </g>
+  
+</svg>

@@ -1,13 +1,21 @@
 """
 Carbon Sentinel - The Brain (AI Agent Orchestrator)
-Main orchestrator — fully integrated with user control layer:
+Main orchestrator - fully integrated with user control layer:
   - Budget gate enforced before every autonomous tx
   - Per-tx spend limit respected
   - Revocation check every cycle
   - Force-buy polling: executes pending user-triggered purchases
   - TX hashes logged locally to tx_hashes.jsonl on every execution
 """
-import argparse
+# Bulletproof terminal protection
+try:
+    from string_utils import install_safe_stdout, safe_str, clean_data
+    install_safe_stdout()
+except ImportError:
+    def safe_str(s): return str(s)
+    def clean_data(d): return d
+    def install_safe_stdout(): pass
+
 import json
 import time
 from datetime import datetime, timezone
@@ -23,6 +31,7 @@ from data_sources.weather_api import WeatherAPIClient
 from attribution_engine import AttributionEngine
 from defillama_scraper import DefiLlamaScraper
 from agent_sessions import end_session
+
 try:
     from supabase import create_client, Client
 except ImportError:
@@ -71,7 +80,7 @@ class CarbonSentinelAgent:
             except Exception as e:
                 print(f"[Agent] [!] Supabase Init Failed: {e}")
 
-    # ── Public entry points ───────────────────────────────────────────────────
+    # == Public entry points ===================================================
 
     def run_audit_cycle(self, comment: str = None) -> dict | None:
         """
@@ -79,7 +88,7 @@ class CarbonSentinelAgent:
         Returns the decision dict, or None if blocked by user controls / budget gate.
         """
         self.comment = comment # Set current reason
-        # ── Pre-check: Is the agent even active? ─────────────────────────────
+        # == Pre-check: Is the agent even active? =============================
         user_cfg = get_user_config(self.user_id)
         if not user_cfg.get("is_active", True):
             print(f"\n[Agent] [!] Audit Cycle skipped: Agent is currently REVOKED for user {self.user_id}")
@@ -90,10 +99,10 @@ class CarbonSentinelAgent:
         print(f"[Agent] Timestamp: {datetime.now(timezone.utc).isoformat()}")
         print(f"{'='*60}")
 
-        # ── Pre-cycle: process any pending force-buys ─────────────────────────
+        # == Pre-cycle: process any pending force-buys =========================
         self._process_force_buys()
 
-        # ── Step 1: Check match status ────────────────────────────────────────
+        # == Step 1: Check match status ========================================
         print("\n[1/4] Checking match status...")
         match_info = self._get_match_info()
         if not match_info:
@@ -105,10 +114,10 @@ class CarbonSentinelAgent:
                 "home_team": self.match_config.get("home_team", "Team A"),
                 "away_team": self.match_config.get("away_team", "Team B"),
             }
-        print(f"  Match: {match_info.get('home_team')} vs {match_info.get('away_team')}")
-        print(f"  Status: {match_info.get('status_long', 'Unknown')}")
+        print(f"  Match: {safe_str(match_info.get('home_team'))} vs {safe_str(match_info.get('away_team'))}")
+        print(f"  Status: {safe_str(match_info.get('status_long', 'Unknown'))}")
 
-        # ── Step 2: Calculate stadium footprint ───────────────────────────────
+        # == Step 2: Calculate stadium footprint ===============================
         print("\n[2/4] Calculating stadium carbon footprint...")
         stadium_key = self.match_config.get("stadium_key", "national_stadium_karachi")
 
@@ -123,7 +132,7 @@ class CarbonSentinelAgent:
                     if ov_data.get("event") in ["surge", "peak"]:
                         is_surge = True
                         override_event = ov_data.get("event")
-                        print(f"  [DEMO] ⚡ Grid Surge Override Detected: {override_event}")
+                        print(f"  [DEMO] [!] Grid Surge Override Detected: {override_event}")
             except:
                 pass
 
@@ -147,7 +156,7 @@ class CarbonSentinelAgent:
                     "weather": {"temperature_c": 28, "humidity_pct": 65} # Mock
                 }
             }
-            print(f"  [Agent] Calculated Excess Carbon: {footprint_result['calculated_footprint_kg']} kg (Surge Mode)")
+            print(f"  [Agent] [!] Calculated Excess Carbon: {footprint_result['calculated_footprint_kg']} kg (Surge Mode)")
         else:
             # Sync spectatorless_mode from user config
             user_cfg = get_user_config(self.user_id)
@@ -173,16 +182,19 @@ class CarbonSentinelAgent:
             )
             print(self.attribution_engine.get_attribution_explanation(footprint_result))
 
-        # ── Step 3: Find cheapest carbon credit ───────────────────────────────
+        # == Step 3: Find cheapest carbon credit ===============================
         print("\n[3/4] Scraping DefiLlama for cheapest carbon credit...")
         cheapest_credit = self.defillama_scraper.get_cheapest_carbon_credit()
-        print(f"  Token: {cheapest_credit['token_symbol']} on {cheapest_credit['dest_chain']}")
+        print(f"  Token: {safe_str(cheapest_credit['token_symbol'])} on {safe_str(cheapest_credit['dest_chain'])}")
         print(f"  Address: {cheapest_credit['target_token']}")
         print(f"  TVL: ${cheapest_credit['tvl_usd']:,.0f}")
 
-        # ── Step 4: Produce decision payload ──────────────────────────────────
+        # == Step 4: Produce decision payload ==================================
         print("\n[4/4] Producing decision payload...")
         decision = self._build_decision(footprint_result, cheapest_credit, comment=self.comment)
+        
+        # Ensure JSON is absolutely clean (no emojis) before returning or logging
+        decision = clean_data(decision)
 
         print(f"\n{'='*60}")
         print("[Agent] DECISION PAYLOAD:")
@@ -191,7 +203,7 @@ class CarbonSentinelAgent:
               f"on {decision['dest_chain']}")
         print(f"{'='*60}")
 
-        # -- Budget gate: cap to limits instead of blocking ───────────────────
+        # -- Budget gate: cap to limits instead of blocking ===================
         user_cfg_now = get_user_config(self.user_id)
         max_tx_usd = user_cfg_now.get("max_tx_usd", 5.0)
         budget_usd = user_cfg_now.get("budget_usd", 50.0)
@@ -244,7 +256,6 @@ class CarbonSentinelAgent:
             )
             return decision  # Return decision for visibility but don't execute
 
-        # ── Log decision and execute ──────────────────────────────────────────
         self._log_decision(decision)
 
         if getattr(self, '_dry_run', False):
@@ -303,6 +314,7 @@ class CarbonSentinelAgent:
             },
         }
 
+        decision = clean_data(decision)
         self._log_decision(decision)
         result = self._execute_on_chain(decision)
         if result and result.get("status") == "success":
@@ -316,7 +328,7 @@ class CarbonSentinelAgent:
         if not pending:
             return
 
-        print(f"\n[Agent] 🔔 {len(pending)} pending force-buy(s) found — processing first...")
+        print(f"\n[Agent] [ALERT] {len(pending)} pending force-buy(s) found - processing first...")
         fb = pending[0]  # Process one per cycle to avoid timeouts
         fb_id = fb.get("id")
         try:
@@ -330,9 +342,9 @@ class CarbonSentinelAgent:
                 mark_force_buy_failed(fb_id, "No tx_hash returned")
         except Exception as e:
             mark_force_buy_failed(fb_id, str(e))
-            print(f"[Agent] ⚠️  Force-buy {fb_id} failed: {e}")
+            print(f"[Agent] [Warning] Force-buy {fb_id} failed: {e}")
 
-    # ── Private helpers ───────────────────────────────────────────────────────
+    # == Private helpers =======================================================
 
     def _get_match_info(self) -> dict:
         """Try to get live match info from sports API."""
@@ -438,8 +450,8 @@ class CarbonSentinelAgent:
             result = executor_mod.run_execution(decision, user_id=self.user_id)
             return result
         except Exception as e:
-            print(f"[Agent] ❌ On-chain execution failed: {e}")
-            print("[Agent]    Decision is in Supabase — retry with executor.py manually.")
+            print(f"[Agent] [X] On-chain execution failed: {e}")
+            print("[Agent]    Decision is in Supabase - retry with executor.py manually.")
             return None
 
 
