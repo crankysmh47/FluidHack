@@ -5,7 +5,7 @@ import axios from 'axios';
 import EcologicalBackground from '../components/EcologicalBackground';
 import CursorStars from '../components/CursorStars';
 
-const API_BASE = `${window.location.protocol}//${window.location.hostname}:5000`;
+const API_BASE = window.location.port === '5173' || window.location.port === '3000' ? `http://${window.location.hostname}:5000` : '';
 
 const Sandbox: React.FC = () => {
   const { user, forceBuy, uiMessage, setUiMessage, accelerateAudit, claimFaucet } = useCarbonStore();

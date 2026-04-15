@@ -65,7 +65,7 @@ const Markets: React.FC = () => {
     <div className="bg-surface text-on-surface min-h-screen pb-32 relative">
       {/* Ecological Background */}
       <EcologicalBackground />
-      
+
       {/* Cursor Stars */}
       <CursorStars />
 

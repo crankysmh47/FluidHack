@@ -65,7 +65,7 @@ from tx_log import read_all_txs, get_total_stats, get_hashes_only
 app = Flask(__name__)
 CORS(app)  # Allow cross-origin requests from the frontend
 # ── Serve React Frontend ─────────────────────────────────────────────────────
-_FRONTEND_DIR = _GLUE_DIR.parent / "frontend" / "dist"
+_FRONTEND_DIR = _GLUE_DIR.parent / "frontend_v2" / "dist"
 
 
 @app.route("/", methods=["GET"])
