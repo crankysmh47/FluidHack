@@ -1,13 +1,14 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useCarbonStore } from '../store/useCarbonStore';
 import { useNavigate } from 'react-router-dom';
 
 const Markets: React.FC = () => {
-  const { user, logout, isDemoMode, toggleDemoMode, liveFeed, fetchLiveFeed, forceBuy, isLoading } = useCarbonStore();
+  const { user, logout, isDemoMode, toggleDemoMode, liveFeed, fetchLiveFeed, forceBuy, isLoading, uiMessage } = useCarbonStore();
   const navigate = useNavigate();
 
-  const [buyingId, setBuyingId] = React.useState<string | null>(null);
-  const [buyStatus, setBuyStatus] = React.useState<string>('Preparing');
+  const [buyingId, setBuyingId] = useState<string | null>(null);
+  const [buyStatus, setBuyStatus] = useState<string>('Preparing');
+  const [successToastId, setSuccessToastId] = useState<string | null>(null);
 
   const handleQuickBuy = async (tokenId: string) => {
     setBuyingId(tokenId);
@@ -25,6 +26,10 @@ const Markets: React.FC = () => {
 
     try {
       await forceBuy(1.0);
+      
+      // On success, show the green success toast locally for this token card
+      setSuccessToastId(tokenId);
+      setTimeout(() => setSuccessToastId(null), 4000);
     } finally {
       clearInterval(interval);
       setBuyingId(null);
@@ -46,10 +51,23 @@ const Markets: React.FC = () => {
     { id: 'mco2', name: 'Moss Carbon Credit', icon: 'cloud_done', color: 'text-emerald-500' },
     { id: 'nct', name: 'Nature Carbon Tonne', icon: 'forest', color: 'text-amber-600' },
     { id: 'ubo', name: 'Universal Basic Offset', icon: 'waves', color: 'text-blue-500' },
+    
+    // Additional assets
+    { id: 'c3t', name: 'C3 Carbon Network', icon: 'park', color: 'text-lime-500' },
+    { id: 'klima', name: 'KlimaDAO token', icon: 'ac_unit', color: 'text-teal-400' },
+    { id: 'crisp', name: 'Crisp Carbon', icon: 'compost', color: 'text-orange-500' },
+    { id: 'regen', name: 'Regen Network', icon: 'grass', color: 'text-green-600' }
   ];
 
   return (
-    <div className="bg-surface text-on-surface min-h-screen pb-32">
+    <div className="bg-surface text-on-surface min-h-screen pb-32 relative">
+      {/* Toast Notification (from Store) */}
+      {uiMessage && (
+        <div className={`fixed top-24 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded-full text-sm font-bold shadow-xl z-50 transition-all ${uiMessage.type === 'success' ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'}`}>
+          {uiMessage.text}
+        </div>
+      )}
+
       {/* TopAppBar */}
       <header className="sticky top-0 z-40 bg-slate-50/70 dark:bg-slate-900/70 backdrop-blur-xl flex justify-between items-center w-full px-6 pt-4 pb-2">
         <div className="flex items-center gap-3">
@@ -84,14 +102,39 @@ const Markets: React.FC = () => {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {tokens.map((token) => {
             const data = liveFeed?.crypto?.[token.id] || { price: 0, change: 0, tvl: 0, chain: 'Polygon' };
             const isMock = isDemoMode || !liveFeed?.crypto;
             
+            // Mock data for the newly added tokens
+            let price = data.price;
+            let tvl = data.tvl;
+            let change = data.change;
+            
+            if (isMock) {
+              if (token.id === 'bct') { price = 18.42; tvl = 500000; change = 2.4; }
+              else if (token.id === 'mco2') { price = 12.15; tvl = 120000; change = -0.8; }
+              else if (token.id === 'nct') { price = 22.10; tvl = 85000; change = 1.2; }
+              else if (token.id === 'ubo') { price = 4.50; tvl = 32000; change = 5.4; }
+              else if (token.id === 'c3t') { price = 5.60; tvl = 45000; change = 3.1; }
+              else if (token.id === 'klima') { price = 2.45; tvl = 1500000; change = 8.5; }
+              else if (token.id === 'crisp') { price = 8.90; tvl = 21000; change = -1.5; }
+              else if (token.id === 'regen') { price = 15.20; tvl = 62000; change = 0.5; }
+            }
+
+            const successActive = successToastId === token.id;
+            
             return (
-              <div key={token.id} className="bg-surface-container-low border border-outline-variant/10 rounded-3xl p-6 flex flex-col justify-between hover:border-primary/30 transition-all group">
-                <div className="flex justify-between items-start mb-6">
+              <div key={token.id} className={`bg-surface-container-low border rounded-3xl p-6 flex flex-col justify-between hover:border-primary/30 transition-all group relative overflow-hidden ${successActive ? 'border-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.3)]' : 'border-outline-variant/10'}`}>
+                
+                {/* Embedded Success Toast inside Card */}
+                <div className={`absolute top-0 left-0 w-full bg-emerald-500 text-white font-bold text-xs py-1.5 flex items-center justify-center gap-1 transition-transform duration-300 ${successActive ? 'translate-y-0' : '-translate-y-full'}`}>
+                  <span className="material-symbols-outlined text-[14px]">check_circle</span>
+                  Quick Buy Successful
+                </div>
+
+                <div className="flex justify-between items-start mb-6 mt-2">
                   <div className="flex items-center gap-4">
                     <div className={`w-12 h-12 rounded-2xl bg-surface-container flex items-center justify-center ${token.color}`}>
                       <span className="material-symbols-outlined text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>{token.icon}</span>
@@ -103,11 +146,11 @@ const Markets: React.FC = () => {
                   </div>
                   <div className="text-right">
                     <p className="text-2xl font-headline font-bold text-primary">
-                      ${isMock && token.id === 'bct' ? "18.42" : isMock && token.id === 'mco2' ? "12.15" : (typeof data?.price === 'number' ? data.price.toFixed(2) : "0.00")}
+                      ${typeof price === 'number' ? price.toFixed(2) : "0.00"}
                     </p>
-                    <p className={`text-[10px] font-bold flex items-center justify-end ${(data?.change ?? 0) >= 0 ? 'text-emerald-500' : 'text-error'}`}>
-                      <span className="material-symbols-outlined text-xs">{(data?.change ?? 0) >= 0 ? 'arrow_drop_up' : 'arrow_drop_down'}</span>
-                      {Math.abs(data?.change ?? 0).toFixed(1)}%
+                    <p className={`text-[10px] font-bold flex items-center justify-end ${(change ?? 0) >= 0 ? 'text-emerald-500' : 'text-error'}`}>
+                      <span className="material-symbols-outlined text-xs">{(change ?? 0) >= 0 ? 'arrow_drop_up' : 'arrow_drop_down'}</span>
+                      {Math.abs(change ?? 0).toFixed(1)}%
                     </p>
                   </div>
                 </div>
@@ -116,27 +159,36 @@ const Markets: React.FC = () => {
                   <div className="bg-surface-container/30 rounded-2xl p-3 border border-outline-variant/5">
                     <p className="text-[10px] uppercase tracking-widest text-on-surface-variant font-bold mb-1">Liquidity (TVL)</p>
                     <p className="font-headline font-bold text-sm text-on-surface">
-                      ${(isMock && token.id === 'bct' ? 500000 : data.tvl).toLocaleString()}
+                      ${tvl?.toLocaleString() || "0"}
                     </p>
                   </div>
                   <div className="bg-surface-container/30 rounded-2xl p-3 border border-outline-variant/5">
                     <p className="text-[10px] uppercase tracking-widest text-on-surface-variant font-bold mb-1">Native Chain</p>
                     <div className="flex items-center gap-1">
                        <span className="material-symbols-outlined text-xs text-primary">link</span>
-                       <p className="font-headline font-bold text-sm text-on-surface">{data.chain}</p>
+                       <p className="font-headline font-bold text-sm text-on-surface">{data.chain || 'Polygon'}</p>
                     </div>
                   </div>
                 </div>
 
                 <button 
                   onClick={() => handleQuickBuy(token.id)}
-                  disabled={isLoading}
-                  className={`w-full py-4 rounded-2xl font-headline font-bold text-sm uppercase tracking-widest transition-all flex items-center justify-center gap-2 disabled:opacity-80 shadow-lg ${buyingId === token.id ? 'bg-emerald-500 text-white scale-[1.02]' : 'bg-primary-container text-on-primary-container hover:bg-primary group-hover:text-white group-hover:bg-primary'}`}
+                  disabled={isLoading || successActive}
+                  className={`w-full py-4 rounded-2xl font-headline font-bold text-sm uppercase tracking-widest transition-all flex items-center justify-center gap-2 disabled:opacity-80 shadow-lg ${successActive ? 'bg-emerald-500 text-white' : buyingId === token.id ? 'bg-primary text-white scale-[1.02]' : 'bg-primary-container text-on-primary-container hover:bg-primary group-hover:text-white group-hover:bg-primary'}`}
                 >
-                  <span className={`material-symbols-outlined text-sm ${buyingId === token.id ? 'animate-spin' : ''}`}>
-                    {buyingId === token.id ? 'progress_activity' : 'bolt'}
-                  </span>
-                  {buyingId === token.id ? buyStatus : 'Quick Buy $1'}
+                  {successActive ? (
+                    <>
+                      <span className="material-symbols-outlined text-sm">check</span>
+                      Purchased
+                    </>
+                  ) : (
+                    <>
+                      <span className={`material-symbols-outlined text-sm ${buyingId === token.id ? 'animate-spin' : ''}`}>
+                        {buyingId === token.id ? 'progress_activity' : 'bolt'}
+                      </span>
+                      {buyingId === token.id ? buyStatus : 'Quick Buy $1'}
+                    </>
+                  )}
                 </button>
               </div>
             );

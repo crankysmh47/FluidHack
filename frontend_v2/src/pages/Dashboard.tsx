@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useCarbonStore } from '../store/useCarbonStore';
 import { useNavigate } from 'react-router-dom';
 import { useWeb3Modal } from '@web3modal/wagmi/react';
 import { useAccount, useSignMessage } from 'wagmi';
 
 const Dashboard: React.FC = () => {
-  const { user, remainingBudget, globalTotalOffset, fetchStats, fetchLedger, revokeAgent, forceBuy, logout, uiMessage, setUiMessage, isAgentActive, isDemoMode, toggleDemoMode, liveFeed, fetchLiveFeed, isPaymentAuthorized, authorizePayment, isLoading, auditOffsetMinutes } = useCarbonStore();
+  const { user, remainingBudget, globalTotalOffset, fetchStats, fetchLedger, revokeAgent, forceBuy, logout, uiMessage, isAgentActive, isDemoMode, toggleDemoMode, liveFeed, fetchLiveFeed, isPaymentAuthorized, authorizePayment, isLoading, auditOffsetMinutes, lastAgentCycle, fetchLastAgentCycle, triggerAgentCycle } = useCarbonStore();
   const navigate = useNavigate();
   const { open } = useWeb3Modal();
   const { isConnected, address } = useAccount();
@@ -17,42 +17,67 @@ const Dashboard: React.FC = () => {
   const [txLimitAmount, setTxLimitAmount] = useState(20);
   const [isAuthDismissed, setIsAuthDismissed] = useState(false);
   const [countdown, setCountdown] = useState('04m 59s');
+  const [cycleProgress, setCycleProgress] = useState(0);
+
+  // Track next cycle time with a ref to survive re-renders
+  const nextCycleRef = useRef<number>(0);
+  const cycleTriggeredRef = useRef<boolean>(false);
 
   // Terminate & Reset logic
   const handleTerminateAgent = async () => {
     await revokeAgent();
-    setIsAuthDismissed(false); // Ensure the overlay shows up immediately
   };
 
+  // Spin up new agent — open the auth modal
+  const handleSpinUpAgent = () => {
+    setIsAuthDismissed(false);
+  };
 
+  // ── Bulletproof 5-Minute Agent Cycle Timer ───────────────────────────
   useEffect(() => {
+    // Initialize the next cycle time if not set
+    if (nextCycleRef.current === 0) {
+      // Align to the next 5-minute wall-clock boundary
+      const now = Date.now();
+      const msIntoCurrentCycle = now % (5 * 60 * 1000);
+      nextCycleRef.current = now + (5 * 60 * 1000) - msIntoCurrentCycle;
+    }
+
     const timer = setInterval(() => {
-      const now = new Date();
-      // Initial 5 minutes = 4m 59s. 
-      // We want it to cycle every 5 minutes.
-      let minutes = 4 - (now.getMinutes() % 5);
-      let seconds = 59 - now.getSeconds();
+      const now = Date.now();
       
-      // Apply manual demo offset
-      minutes -= auditOffsetMinutes;
-      
-      if (minutes < 0 || (minutes === 0 && seconds <= 0)) {
-        // TIMER ENDED
-        if (isAgentActive && isPaymentAuthorized) {
-          // Trigger autonomous transaction
-          forceBuy(1.0); 
-          setUiMessage("Autonomous Audit Cycle Complete: Protocol executed $1.00 offset.", "success");
+      // Apply demo acceleration: reduce remaining time
+      const effectiveNextCycle = nextCycleRef.current - (auditOffsetMinutes * 60 * 1000);
+      let msRemaining = effectiveNextCycle - now;
+
+      if (msRemaining <= 0) {
+        // CYCLE TRIGGERED
+        if (!cycleTriggeredRef.current && isAgentActive && isPaymentAuthorized) {
+          cycleTriggeredRef.current = true;
+          console.log('[Dashboard] 5-minute cycle triggered — calling agent pipeline');
+          triggerAgentCycle().finally(() => {
+            cycleTriggeredRef.current = false;
+          });
         }
-        // Reset the demo offset to restart the 5m cycle
+        
+        // Reset for next cycle
+        nextCycleRef.current = now + (5 * 60 * 1000);
         useCarbonStore.setState({ auditOffsetMinutes: 0 });
-        minutes = 4;
-        seconds = 59;
+        msRemaining = 5 * 60 * 1000;
       }
-      
+
+      const totalMs = 5 * 60 * 1000;
+      const progress = ((totalMs - msRemaining) / totalMs) * 100;
+      setCycleProgress(Math.min(100, Math.max(0, progress)));
+
+      const totalSeconds = Math.max(0, Math.floor(msRemaining / 1000));
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = totalSeconds % 60;
       setCountdown(`${minutes.toString().padStart(2, '0')}m ${seconds.toString().padStart(2, '0')}s`);
     }, 1000);
+
     return () => clearInterval(timer);
-  }, [auditOffsetMinutes, isAgentActive, isPaymentAuthorized, forceBuy, setUiMessage]);
+  }, [auditOffsetMinutes, isAgentActive, isPaymentAuthorized, triggerAgentCycle]);
 
   const handleAuthorize = async () => {
     try {
@@ -60,6 +85,7 @@ const Dashboard: React.FC = () => {
       
       await signMessageAsync({ message });
       await authorizePayment(allowanceAmount, txLimitAmount);
+      setIsAuthDismissed(true);
     } catch (err) {
       console.error("Authorization user error:", err);
     }
@@ -73,13 +99,24 @@ const Dashboard: React.FC = () => {
     fetchStats();
     fetchLedger();
     fetchLiveFeed();
+    fetchLastAgentCycle();
     const interval = setInterval(() => {
       fetchStats();
       fetchLedger();
       fetchLiveFeed();
+      fetchLastAgentCycle();
     }, 5000);
     return () => clearInterval(interval);
-  }, [fetchStats, fetchLedger, fetchLiveFeed, user, navigate]);
+  }, [fetchStats, fetchLedger, fetchLiveFeed, fetchLastAgentCycle, user, navigate]);
+
+  // Helper to format the last cycle time
+  const formatCycleTime = (ts: number | null) => {
+    if (!ts) return 'Never';
+    const d = new Date(ts * 1000);
+    return d.toLocaleTimeString();
+  };
+
+  const agentResult = lastAgentCycle?.result;
 
   return (
     <div className="bg-surface text-on-surface min-h-screen pb-24">
@@ -96,9 +133,17 @@ const Dashboard: React.FC = () => {
           <div className="w-8 h-8 rounded-full bg-secondary-container flex items-center justify-center overflow-hidden">
             <span className="font-headline font-bold text-primary-container">{user?.name.charAt(0).toUpperCase()}</span>
           </div>
-          <span className="font-headline font-semibold text-emerald-600 dark:text-emerald-400 tracking-tighter text-xl">
-            {user?.name}'s Dashboard
-          </span>
+          <div className="flex flex-col">
+            <span className="font-headline font-semibold text-emerald-600 dark:text-emerald-400 tracking-tighter text-xl leading-none">
+              {user?.name}'s Dashboard
+            </span>
+            <div className="flex items-center gap-1.5 mt-1">
+              <span className={`w-1.5 h-1.5 rounded-full ${isPaymentAuthorized && isAgentActive ? 'bg-emerald-500 animate-pulse' : 'bg-red-400'}`}></span>
+              <span className={`text-[10px] font-bold uppercase tracking-wider ${isPaymentAuthorized && isAgentActive ? 'text-emerald-500' : 'text-red-400'}`}>
+                {isPaymentAuthorized && isAgentActive ? 'Agent Online' : 'Agent Offline'}
+              </span>
+            </div>
+          </div>
         </div>
         <div className="flex gap-4 items-center">
           <button 
@@ -275,53 +320,132 @@ const Dashboard: React.FC = () => {
           </div>
         </section>
 
-        {/* Section: Sentinel Control Center */}
-        {isPaymentAuthorized && (
-          <section className="md:col-span-12">
-            <div className="bg-surface-container-low rounded-[2.5rem] p-8 border border-outline-variant/20 biological-shadow">
-              <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
-                    <span className="material-symbols-outlined">settings_suggest</span>
-                  </div>
-                  <div>
-                    <h3 className="font-headline font-bold text-xl text-on-surface">Protocol Control Center</h3>
-                    <p className="text-xs text-on-surface-variant">Manage your autonomous agent and manual overrides.</p>
-                  </div>
+        {/* Section: Sentinel Control Center — always visible */}
+        <section className="md:col-span-12">
+          <div className="bg-surface-container-low rounded-[2.5rem] p-8 border border-outline-variant/20 biological-shadow">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+              <div className="flex items-center gap-4">
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${isPaymentAuthorized && isAgentActive ? 'bg-primary/10 text-primary' : 'bg-red-500/10 text-red-500'}`}>
+                  <span className="material-symbols-outlined">{isPaymentAuthorized && isAgentActive ? 'settings_suggest' : 'power_off'}</span>
                 </div>
-                
-                <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
-                  {isPaymentAuthorized ? (
-                    <button 
-                      onClick={handleTerminateAgent}
-                      className="flex-1 md:flex-none px-8 py-4 rounded-2xl font-bold font-headline uppercase text-sm tracking-widest transition-all flex items-center justify-center gap-3 bg-error/10 text-error hover:bg-error/20 border border-error/20 active:scale-95"
-                    >
-                      <span className="material-symbols-outlined">cancel</span>
-                      Terminate Agent
-                    </button>
-                  ) : (
-                    <button 
-                      onClick={() => setIsAuthDismissed(false)}
-                      className="flex-1 md:flex-none px-8 py-4 rounded-2xl font-bold font-headline uppercase text-sm tracking-widest transition-all flex items-center justify-center gap-3 bg-primary text-on-primary shadow-xl hover:brightness-110 active:scale-95"
-                    >
-                      <span className="material-symbols-outlined">add_circle</span>
-                      Spin Up New Agent
-                    </button>
-                  )}
-                  
-                  <button 
-                    onClick={() => setIsBuyModalOpen(true)}
-                    disabled={!isPaymentAuthorized}
-                    className={`flex-1 md:flex-none px-8 py-4 rounded-2xl font-headline font-bold uppercase text-sm tracking-widest shadow-xl flex items-center justify-center gap-3 transition-all ${!isPaymentAuthorized ? 'bg-surface-container-highest text-on-surface-variant/40 cursor-not-allowed' : 'bg-primary text-on-primary hover:brightness-110 active:scale-95'}`}
-                  >
-                    <span>Force Buy</span>
-                    <span className="material-symbols-outlined">bolt</span>
-                  </button>
+                <div>
+                  <h3 className="font-headline font-bold text-xl text-on-surface">Protocol Control Center</h3>
+                  <p className="text-xs text-on-surface-variant">
+                    {isPaymentAuthorized && isAgentActive 
+                      ? 'Manage your autonomous agent and manual overrides.' 
+                      : '⚠ Agent is offline. Spin up a new agent to resume autonomous monitoring.'}
+                  </p>
                 </div>
               </div>
+              
+              <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
+                {isPaymentAuthorized && isAgentActive ? (
+                  <button 
+                    onClick={handleTerminateAgent}
+                    className="flex-1 md:flex-none px-8 py-4 rounded-2xl font-bold font-headline uppercase text-sm tracking-widest transition-all flex items-center justify-center gap-3 bg-error/10 text-error hover:bg-error/20 border border-error/20 active:scale-95"
+                  >
+                    <span className="material-symbols-outlined">cancel</span>
+                    Terminate Agent
+                  </button>
+                ) : (
+                  <button 
+                    onClick={handleSpinUpAgent}
+                    className="flex-1 md:flex-none px-8 py-4 rounded-2xl font-bold font-headline uppercase text-sm tracking-widest transition-all flex items-center justify-center gap-3 bg-primary text-on-primary shadow-xl hover:brightness-110 active:scale-95 animate-pulse"
+                  >
+                    <span className="material-symbols-outlined">add_circle</span>
+                    Spin Up New Agent
+                  </button>
+                )}
+                
+                <button 
+                  onClick={() => setIsBuyModalOpen(true)}
+                  disabled={!isPaymentAuthorized || !isAgentActive}
+                  className={`flex-1 md:flex-none px-8 py-4 rounded-2xl font-headline font-bold uppercase text-sm tracking-widest shadow-xl flex items-center justify-center gap-3 transition-all ${(!isPaymentAuthorized || !isAgentActive) ? 'bg-surface-container-highest text-on-surface-variant/40 cursor-not-allowed' : 'bg-primary text-on-primary hover:brightness-110 active:scale-95'}`}
+                >
+                  <span>Force Buy</span>
+                  <span className="material-symbols-outlined">bolt</span>
+                </button>
+              </div>
             </div>
-          </section>
-        )}
+          </div>
+        </section>
+
+        {/* Section: Last Agent Decision — Intelligence Feed */}
+        <section className="md:col-span-12">
+          <div className="bg-gradient-to-r from-slate-50 to-emerald-50 dark:from-slate-900 dark:to-emerald-950/30 rounded-3xl p-6 border border-emerald-200/30 dark:border-emerald-800/30">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${lastAgentCycle?.running ? 'bg-amber-500/20 text-amber-600' : agentResult?.blocked ? 'bg-red-500/20 text-red-500' : agentResult ? 'bg-emerald-500/20 text-emerald-600' : 'bg-slate-200 dark:bg-slate-700 text-slate-500'}`}>
+                  <span className={`material-symbols-outlined text-lg ${lastAgentCycle?.running ? 'animate-spin' : ''}`}>
+                    {lastAgentCycle?.running ? 'progress_activity' : agentResult?.blocked ? 'block' : agentResult ? 'task_alt' : 'smart_toy'}
+                  </span>
+                </div>
+                <div>
+                  <h3 className="font-headline font-bold text-sm text-on-surface">Agent Intelligence Feed</h3>
+                  <p className="text-[10px] text-on-surface-variant">
+                    {lastAgentCycle?.running ? 'Analyzing grid load & computing decision...' 
+                      : agentResult ? `Last audit: ${formatCycleTime(lastAgentCycle.timestamp)}`
+                      : 'Awaiting first autonomous cycle'}
+                  </p>
+                </div>
+              </div>
+              {agentResult?.is_surge_event && (
+                <span className="bg-amber-500 text-white text-[9px] font-bold px-3 py-1 rounded-full animate-pulse">⚡ SURGE DETECTED</span>
+              )}
+            </div>
+
+            {agentResult && !agentResult.error ? (
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                <div className="bg-white/60 dark:bg-slate-800/60 rounded-xl p-3 border border-outline-variant/10">
+                  <p className="text-[9px] uppercase tracking-widest text-on-surface-variant font-bold mb-1">Event Type</p>
+                  <p className="font-headline font-bold text-sm text-on-surface">
+                    {agentResult.is_surge_event ? (agentResult.metadata?.event_type === 'peak' ? '🔴 Peak Load' : '⚡ Grid Surge') : '🟢 Normal'}
+                  </p>
+                </div>
+                <div className="bg-white/60 dark:bg-slate-800/60 rounded-xl p-3 border border-outline-variant/10">
+                  <p className="text-[9px] uppercase tracking-widest text-on-surface-variant font-bold mb-1">Footprint</p>
+                  <p className="font-headline font-bold text-sm text-on-surface">
+                    {agentResult.calculated_footprint_kg?.toFixed(1) || '—'} <span className="text-[9px] font-normal">kg CO₂</span>
+                  </p>
+                </div>
+                <div className="bg-white/60 dark:bg-slate-800/60 rounded-xl p-3 border border-outline-variant/10">
+                  <p className="text-[9px] uppercase tracking-widest text-on-surface-variant font-bold mb-1">Amount</p>
+                  <p className={`font-headline font-bold text-sm ${agentResult.blocked ? 'text-red-500' : 'text-emerald-600'}`}>
+                    ${agentResult.amount_usd?.toFixed(4) || '—'}
+                    {agentResult.capped_to_remaining && <span className="text-[8px] text-amber-500 ml-1">(capped)</span>}
+                  </p>
+                </div>
+                <div className="bg-white/60 dark:bg-slate-800/60 rounded-xl p-3 border border-outline-variant/10">
+                  <p className="text-[9px] uppercase tracking-widest text-on-surface-variant font-bold mb-1">Token</p>
+                  <p className="font-headline font-bold text-sm text-on-surface">
+                    {agentResult.metadata?.token_symbol || 'BCT'}
+                  </p>
+                </div>
+                <div className="bg-white/60 dark:bg-slate-800/60 rounded-xl p-3 border border-outline-variant/10">
+                  <p className="text-[9px] uppercase tracking-widest text-on-surface-variant font-bold mb-1">Status</p>
+                  <p className={`font-headline font-bold text-sm ${agentResult.blocked ? 'text-red-500' : 'text-emerald-600'}`}>
+                    {agentResult.blocked ? '✗ Blocked' : '✓ Executed'}
+                  </p>
+                  {agentResult.blocked_reason && (
+                    <p className="text-[8px] text-red-400 mt-0.5">{agentResult.blocked_reason.substring(0, 40)}</p>
+                  )}
+                </div>
+              </div>
+            ) : agentResult?.error ? (
+              <div className="bg-red-50 dark:bg-red-900/20 rounded-xl p-4 border border-red-200 dark:border-red-800/30">
+                <p className="text-sm text-red-600 dark:text-red-400 font-medium">Agent Error: {agentResult.error}</p>
+              </div>
+            ) : (
+              <div className="bg-white/40 dark:bg-slate-800/40 rounded-xl p-4 border border-outline-variant/10 text-center">
+                <p className="text-sm text-on-surface-variant">
+                  {isPaymentAuthorized && isAgentActive 
+                    ? `Agent is monitoring. Next autonomous cycle in ${countdown}.`
+                    : 'Authorize the agent to begin autonomous carbon monitoring.'}
+                </p>
+              </div>
+            )}
+          </div>
+        </section>
 
         {/* Section: Sentinel Impact Pulse */}
         <section className="md:col-span-12">
@@ -365,7 +489,7 @@ const Dashboard: React.FC = () => {
                    <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-2">Next Audit Cycle</p>
                    <div className="flex items-center gap-4">
                      <div className="flex-1 bg-white/5 h-2 rounded-full overflow-hidden">
-                       <div className="bg-emerald-500 h-full transition-all duration-1000" style={{ width: `${(1800 - ((new Date().getMinutes() % 30) * 60 + new Date().getSeconds())) / 1800 * 100}%` }}></div>
+                       <div className="bg-emerald-500 h-full transition-all duration-1000" style={{ width: `${cycleProgress}%` }}></div>
                      </div>
                      <span className="text-xs font-mono font-bold text-emerald-400">{countdown}</span>
                    </div>
@@ -389,8 +513,6 @@ const Dashboard: React.FC = () => {
         </section>
       </main>
 
-      {/* Contextual Actions Overlay - Removed to avoid shadowing */}
-
       {/* BottomNavBar */}
       <nav className="fixed bottom-0 left-0 w-full z-40 flex justify-around items-center px-6 pb-8 pt-4 bg-slate-50/80 dark:bg-slate-900/80 backdrop-blur-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.06)] dark:shadow-none border-t border-outline-variant/20 rounded-t-3xl">
         <a className="flex flex-col items-center justify-center text-emerald-600 after:content-[''] after:w-1 after:h-1 after:bg-emerald-500 after:rounded-full after:mt-1 transform translate-y-[-2px] duration-300 pointer-events-none">
@@ -411,7 +533,7 @@ const Dashboard: React.FC = () => {
         </a>
       </nav>
 
-      {/* Authorization Overlay - Only visible if wallet is not connected or payment not authorized and not dismissed */}
+      {/* Authorization Modal — Triggered by Spin Up Agent button or first visit */}
       {(!isConnected || !isPaymentAuthorized) && !isAuthDismissed && (
         <div className="fixed inset-0 z-50 bg-white/70 dark:bg-slate-900/60 backdrop-blur-md flex flex-col items-center justify-center p-6">
           <div className="max-w-xl w-full bg-emerald-950 rounded-[3rem] p-10 md:p-12 shadow-[0_32px_64px_-12px_rgba(0,0,0,0.5)] border border-emerald-500/30 text-center relative overflow-hidden">
@@ -489,7 +611,7 @@ const Dashboard: React.FC = () => {
               onClick={() => setIsAuthDismissed(true)}
               className="mt-8 text-emerald-500/40 font-label text-[10px] uppercase tracking-widest hover:text-emerald-400 transition-colors cursor-pointer"
             >
-              Skip - View Dashboard
+              Skip — View Dashboard
             </button>
           </div>
         </div>

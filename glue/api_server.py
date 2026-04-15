@@ -320,9 +320,32 @@ def ledger():
 
 OVERRIDE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "surge_override.json")
 
+# Track last agent cycle result for display
+_LAST_AGENT_CYCLE = {
+    "result": None,
+    "timestamp": None,
+    "running": False,
+}
+
+# Simulated balances for demo faucet
+_SIMULATED_BALANCES = {}
+
 def set_surge_override(event):
     with open(OVERRIDE_FILE, "w") as f:
-        json.dump({"event": event, "timestamp": time.time()}, f)
+        json.dump({"event": event, "timestamp": time.time(), "consumed": False}, f)
+
+def mark_surge_consumed():
+    """Mark surge as consumed so next read shows it was detected."""
+    if os.path.exists(OVERRIDE_FILE):
+        try:
+            with open(OVERRIDE_FILE, "r") as f:
+                data = json.load(f)
+            data["consumed"] = True
+            data["detected_at"] = time.time()
+            with open(OVERRIDE_FILE, "w") as f:
+                json.dump(data, f)
+        except:
+            pass
 
 def clear_surge_override():
     if os.path.exists(OVERRIDE_FILE):
@@ -351,7 +374,111 @@ def trigger_demo_event():
         return _ok({"message": "Overrides cleared. System back to real-time grid data."})
     
     set_surge_override(event)
-    return _ok({"message": f"Simulated {event} triggered. Agent will detect spike in next cycle."})
+    return _ok({"message": f"Simulated {event} triggered. Agent will detect spike as perimeter in next cycle."})
+
+
+@app.route("/demo/get-override", methods=["GET"])
+def get_demo_override():
+    """Return current surge override state (for frontend display)."""
+    override = get_surge_override()
+    return _ok({"override": override})
+
+
+@app.route("/demo/faucet", methods=["POST"])
+def demo_faucet():
+    """
+    Demo faucet: give user 10,000 USD simulation budget.
+    Body: {"user_id": str}
+    This resets/sets budget to $10,000 for demo purposes.
+    """
+    body = request.get_json(silent=True) or {}
+    user_id = body.get("user_id", "demo_user")
+    
+    # Set balance in memory and config
+    _SIMULATED_BALANCES[user_id] = 10000.0
+    
+    # Also reset budget in user config for agent
+    try:
+        updated = update_user_config(
+            user_id, 
+            budget_usd=10000.0, 
+            spent_usd=0.0, 
+            tx_count=0,
+            is_active=True,
+            auto_execute=True,
+            max_tx_usd=500.0,
+            authorized_tx_count=100
+        )
+        return _ok({
+            "message": f"Faucet dispensed! $10,000 USD added to demo wallet for {user_id}.",
+            "balance": 10000.0,
+            "user_id": user_id,
+            "config_updated": True
+        })
+    except Exception as e:
+        return _ok({
+            "message": f"Faucet dispensed! $10,000 USD simulation balance granted.",
+            "balance": 10000.0,
+            "user_id": user_id,
+            "config_updated": False
+        })
+
+
+@app.route("/demo/balance/<user_id>", methods=["GET"])
+def demo_balance(user_id: str):
+    """Check simulated demo balance."""
+    cfg = get_user_config(user_id)
+    budget = cfg.get("budget_usd", 0.0)
+    spent = cfg.get("spent_usd", 0.0)
+    remaining = max(0.0, budget - spent)
+    return _ok({
+        "user_id": user_id,
+        "balance_usd": _SIMULATED_BALANCES.get(user_id, budget),
+        "budget_usd": budget,
+        "spent_usd": spent,
+        "remaining_usd": remaining
+    })
+
+
+@app.route("/agent/last-cycle", methods=["GET"])
+def agent_last_cycle():
+    """Return the result of the last agent autonomous cycle."""
+    return _ok(_LAST_AGENT_CYCLE)
+
+
+
+@app.route("/agent/run-cycle", methods=["POST"])
+def agent_run_cycle():
+    """
+    Trigger an immediate agent audit cycle (synchronous, for demo).
+    Body: {"user_id": str}
+    Returns the decision payload.
+    """
+    if _LAST_AGENT_CYCLE["running"]:
+        return _ok({"message": "Agent cycle already running.", "result": _LAST_AGENT_CYCLE["result"]})
+    
+    body = request.get_json(silent=True) or {}
+    user_id = body.get("user_id", "demo_user")
+    
+    _LAST_AGENT_CYCLE["running"] = true
+    try:
+        from agent import CarbonSentinelAgent
+        from config import DEFAULT_MATCH
+        agent = CarbonSentinelAgent(DEFAULT_MATCH.copy(), user_id=user_id)
+        result = agent.run_audit_cycle()
+        _LAST_AGENT_CYCLE["result"] = result
+        _LAST_AGENT_CYCLE["timestamp"] = time.time()
+        # Mark surge as consumed if it was active
+        mark_surge_consumed()
+    except Exception as e:
+        _LAST_AGENT_CYCLE["result"] = {"error": str(e)}
+        _LAST_AGENT_CYCLE["timestamp"] = time.time()
+        print(f"[AgentCycle] Error: {e}")
+    finally:
+        _LAST_AGENT_CYCLE["running"] = False
+    
+    return _ok({"message": "Agent cycle completed.", "user_id": user_id, "data": _LAST_AGENT_CYCLE})
+
 
 
 # ── User Config ───────────────────────────────────────────────────────────────

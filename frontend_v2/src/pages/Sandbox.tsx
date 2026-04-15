@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useCarbonStore } from '../store/useCarbonStore';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -6,8 +6,10 @@ import axios from 'axios';
 const API_BASE = `${window.location.protocol}//${window.location.hostname}:5000`;
 
 const Sandbox: React.FC = () => {
-  const { user, forceBuy, uiMessage, setUiMessage, accelerateAudit } = useCarbonStore();
+  const { user, forceBuy, uiMessage, setUiMessage, accelerateAudit, claimFaucet } = useCarbonStore();
   const navigate = useNavigate();
+
+  const [isFaucetLoading, setIsFaucetLoading] = useState(false);
 
   useEffect(() => {
     if (!user) navigate('/');
@@ -20,6 +22,12 @@ const Sandbox: React.FC = () => {
     } catch (err) {
       setUiMessage("Failed to trigger simulation.", "error");
     }
+  };
+
+  const handleFaucetClaim = async () => {
+    setIsFaucetLoading(true);
+    await claimFaucet();
+    setIsFaucetLoading(false);
   };
 
   return (
@@ -76,12 +84,14 @@ const Sandbox: React.FC = () => {
               </p>
             </div>
             <button 
-              onClick={() => {
-                setUiMessage("Simulated Faucet: 10,000 USDC added to your environment balance.", "success");
-              }}
-              className="clinical-gradient w-full py-5 rounded-md text-on-primary font-headline font-bold text-lg hover:brightness-110 transition-all active:scale-95 duration-200"
+              disabled={isFaucetLoading}
+              onClick={handleFaucetClaim}
+              className="clinical-gradient flex items-center justify-center gap-3 w-full py-5 rounded-md text-on-primary font-headline font-bold text-lg hover:brightness-110 transition-all active:scale-95 duration-200 disabled:opacity-70 shadow-lg"
             >
-              Get 10,000 USDC
+              <span className={`material-symbols-outlined ${isFaucetLoading ? 'animate-spin' : ''}`}>
+                {isFaucetLoading ? 'progress_activity' : 'account_balance_wallet'}
+              </span>
+              {isFaucetLoading ? 'Claiming 10,000 USD...' : 'Get 10,000 USD'}
             </button>
           </div>
 

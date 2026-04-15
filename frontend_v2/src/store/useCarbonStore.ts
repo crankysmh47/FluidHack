@@ -16,6 +16,32 @@ export interface User {
   name: string;
 }
 
+export interface AgentDecision {
+  timestamp: number | null;
+  running: boolean;
+  result: {
+    match_id?: string;
+    calculated_footprint_kg?: number;
+    amount_usd?: number;
+    is_surge_event?: boolean;
+    blocked?: boolean;
+    blocked_reason?: string;
+    capped_to_limit?: boolean;
+    capped_to_remaining?: boolean;
+    dest_chain?: string;
+    metadata?: {
+      token_symbol?: string;
+      event_type?: string;
+      is_surge?: boolean;
+      grid_intensity_gco2_kwh?: number;
+      timestamp?: string;
+    };
+    error?: string;
+    status?: string;
+    tx_hash?: string;
+  } | null;
+}
+
 interface CarbonStore {
   user: User | null;
   
@@ -35,6 +61,11 @@ interface CarbonStore {
   
   // Config
   isAgentActive: boolean;
+  
+  // Agent Decision (last cycle result)
+  lastAgentCycle: AgentDecision;
+  fetchLastAgentCycle: () => Promise<void>;
+  triggerAgentCycle: () => Promise<any>;
   
   // Actions
   login: (username: string, pass: string) => Promise<boolean>;
@@ -68,6 +99,8 @@ interface CarbonStore {
   // Demo Control
   auditOffsetMinutes: number;
   accelerateAudit: (mins: number) => void;
+  claimFaucet: () => Promise<boolean>;
+  lastFaucetClaim: number | null;
 }
 
 export const useCarbonStore = create<CarbonStore>()(
@@ -89,12 +122,124 @@ export const useCarbonStore = create<CarbonStore>()(
       liveFeed: null,
       isPaymentAuthorized: false,
       auditOffsetMinutes: 0,
+      lastFaucetClaim: null,
+      lastAgentCycle: { timestamp: null, running: false, result: null },
 
       toggleDemoMode: () => set((state) => ({ isDemoMode: !state.isDemoMode })),
 
       accelerateAudit: (mins: number) => set((state) => ({ 
         auditOffsetMinutes: state.auditOffsetMinutes + mins 
       })),
+
+      // ── Agent Cycle Actions ────────────────────────────────────────────
+      
+      fetchLastAgentCycle: async () => {
+        try {
+          const res = await axios.get(`${API_BASE}/agent/last-cycle`);
+          if (res.data.ok && res.data.data) {
+            set({ lastAgentCycle: res.data.data });
+          }
+        } catch (err) {
+          // Silent — agent cycle endpoint may not be available
+        }
+      },
+
+      triggerAgentCycle: async () => {
+        const { user, isAgentActive, isPaymentAuthorized, setUiMessage } = get();
+        if (!user) return null;
+        if (!isAgentActive || !isPaymentAuthorized) {
+          console.log('[Store] Agent not active or not authorized, skipping cycle');
+          return null;
+        }
+
+        try {
+          set({ lastAgentCycle: { ...get().lastAgentCycle, running: true } });
+          const res = await axios.post(`${API_BASE}/agent/run-cycle`, { user_id: user.id });
+          
+          if (res.data.ok) {
+            // Poll for the result after a short delay (agent runs in a thread)
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            
+            // Fetch the actual result
+            const cycleRes = await axios.get(`${API_BASE}/agent/last-cycle`);
+            if (cycleRes.data.ok && cycleRes.data.data) {
+              const cycleData = cycleRes.data.data;
+              set({ lastAgentCycle: cycleData });
+              
+              const result = cycleData.result;
+              if (result) {
+                if (result.error) {
+                  setUiMessage(`Agent Cycle Error: ${result.error}`, 'error');
+                } else if (result.blocked) {
+                  setUiMessage(`Agent Cycle: ${result.blocked_reason || 'Blocked by policy'}`, 'error');
+                } else {
+                  const surge = result.is_surge_event ? ' ⚡ SURGE DETECTED' : '';
+                  const capped = result.capped_to_remaining ? ' (capped to budget)' : '';
+                  setUiMessage(
+                    `Agent Cycle Complete${surge}: Offset ${result.calculated_footprint_kg?.toFixed(1) || '?'}kg CO₂ → $${result.amount_usd?.toFixed(4) || '?'} ${result.metadata?.token_symbol || 'BCT'}${capped}`,
+                    'success'
+                  );
+                }
+              }
+            }
+            
+            // Refresh stats after cycle
+            await get().fetchStats();
+            await get().fetchLedger();
+            return res.data;
+          }
+          return null;
+        } catch (err) {
+          console.error('Agent Cycle Error:', err);
+          set({ lastAgentCycle: { ...get().lastAgentCycle, running: false } });
+          setUiMessage('Agent cycle failed — backend may be offline', 'error');
+          return null;
+        }
+      },
+
+      // ── Faucet ─────────────────────────────────────────────────────────
+
+      claimFaucet: async () => {
+        const { user, lastFaucetClaim, setUiMessage } = get();
+        if (!user) return false;
+
+        // 5 minute cooldown for demo
+        const COOLDOWN_MS = 5 * 60 * 1000;
+        if (lastFaucetClaim && Date.now() - lastFaucetClaim < COOLDOWN_MS) {
+          const remainingMins = Math.ceil((COOLDOWN_MS - (Date.now() - lastFaucetClaim)) / 60000);
+          setUiMessage(`Faucet already used — please wait ${remainingMins} minutes`, "error");
+          return false;
+        }
+
+        set({ isLoading: true });
+        try {
+          const res = await axios.post(`${API_BASE}/demo/faucet`, { user_id: user.id });
+          if (res.data.ok) {
+            set({ 
+              lastFaucetClaim: Date.now(),
+              isPaymentAuthorized: true,
+              isAgentActive: true
+            });
+            setUiMessage("✓ 10,000 USD added to your account", "success");
+            await get().fetchStats();
+            return true;
+          }
+          return false;
+        } catch (err) {
+          console.error("Faucet Error:", err);
+          // Fallback to local if API fails (Option B style)
+          set({ 
+            lastFaucetClaim: Date.now(),
+            remainingBudget: (get().remainingBudget || 0) + 10000,
+            isPaymentAuthorized: true,
+            isAgentActive: true
+          });
+          setUiMessage("✓ 10,000 USD added to your account (offline mode)", "success");
+          return true;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
 
       authorizePayment: async (budget: number, txLimit: number = 20) => {
         const { user } = get();
@@ -110,7 +255,7 @@ export const useCarbonStore = create<CarbonStore>()(
           });
           
           if (res.data.ok) {
-            set({ isPaymentAuthorized: true, authorizedTxCount: txLimit });
+            set({ isPaymentAuthorized: true, authorizedTxCount: txLimit, isAgentActive: true });
             get().setUiMessage(`Protocol Authorized with $${budget} allowance and ${txLimit} transactions.`, "success");
             await get().fetchStats();
             return true;
@@ -214,11 +359,11 @@ fetchStats: async () => {
             });
 
             // AUTO-TERMINATION LOGIC
-            // If the agent is exhausted, de-authorize locally to trigger the setup overlay
+            // If the agent is exhausted, mark it offline but DON'T de-authorize to allow dashboard viewing
             const { remainingBudget, remainingTxCount, isPaymentAuthorized } = get();
             if (isPaymentAuthorized && (remainingBudget <= 0 || remainingTxCount <= 0)) {
-              set({ isPaymentAuthorized: false, isAgentActive: false });
-              get().setUiMessage("Sentinel Protocol exhausted. Please authorize a new budget to continue monitoring.", "error");
+              set({ isAgentActive: false });
+              get().setUiMessage("Sentinel Protocol exhausted. Agent is now offline. Spin up a new agent to continue.", "error");
             }
           }
         } catch (err) {
@@ -324,15 +469,26 @@ fetchStats: async () => {
       },
 
       forceBuy: async (amount: number) => {
-        const { user, setUiMessage } = get();
+        const { user, setUiMessage, remainingBudget } = get();
         if (!user) return;
+        
+        // Cap to remaining budget if it would exceed
+        let finalAmount = amount;
+        if (finalAmount > remainingBudget && remainingBudget > 0.01) {
+          finalAmount = Math.floor(remainingBudget * 100) / 100; // floor to cents
+          setUiMessage(`Amount capped to remaining budget: $${finalAmount.toFixed(2)}`, 'success');
+        } else if (remainingBudget <= 0.01) {
+          setUiMessage('Budget exhausted. Authorize a new budget to continue.', 'error');
+          return;
+        }
+        
         set({ isLoading: true });
         try {
           const res = await axios.post(`${API_BASE}/user/${user.id}/force-buy/immediate`, { 
-            amount_usd: amount 
+            amount_usd: finalAmount 
           });
           if (res.data.ok) {
-            setUiMessage(`Protocol executed $${amount} offset successfully!`, "success");
+            setUiMessage(`Protocol executed $${finalAmount.toFixed(2)} offset successfully!`, "success");
             await get().fetchStats();
             await get().fetchLedger();
           } else {
@@ -353,7 +509,8 @@ fetchStats: async () => {
         user: state.user, 
         isDemoMode: state.isDemoMode,
         isPaymentAuthorized: state.isPaymentAuthorized,
-        isAgentActive: state.isAgentActive
+        isAgentActive: state.isAgentActive,
+        lastFaucetClaim: state.lastFaucetClaim
       }),
     }
   )

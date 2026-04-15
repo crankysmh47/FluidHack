@@ -190,10 +190,47 @@ class CarbonSentinelAgent:
               f"on {decision['dest_chain']}")
         print(f"{'='*60}")
 
-        # ── Budget gate ───────────────────────────────────────────────────────
+        # -- Budget gate: cap to limits instead of blocking ───────────────────
+        user_cfg_now = get_user_config(self.user_id)
+        max_tx_usd = user_cfg_now.get("max_tx_usd", 5.0)
+        budget_usd = user_cfg_now.get("budget_usd", 50.0)
+        spent_usd = user_cfg_now.get("spent_usd", 0.0)
+        remaining = max(0.0, budget_usd - spent_usd)
+
+        # If proposed exceeds per-tx limit, cap it to the limit
+        if decision["amount_usd"] > max_tx_usd:
+            print(f"\n[Agent] Proposed ${decision['amount_usd']:.4f} exceeds per-tx limit ${max_tx_usd:.2f}. Capping to limit.")
+            decision["amount_usd"] = round(max_tx_usd, 6)
+            decision["amount_usdc_wei"] = int(max_tx_usd * 1_000_000)
+            decision["capped_to_limit"] = True
+
+        # If proposed exceeds remaining budget, cap to remaining
+        if decision["amount_usd"] > remaining:
+            if remaining > 0.01:
+                print(f"\n[Agent] Capping to remaining budget ${remaining:.4f}")
+                decision["amount_usd"] = round(remaining, 6)
+                decision["amount_usdc_wei"] = int(remaining * 1_000_000)
+                decision["capped_to_remaining"] = True
+            else:
+                decision["amount_usd"] = 0.0
+
         allowed, reason = check_budget_gate(self.user_id, decision["amount_usd"])
+        
+        # Auto-clear surge if it was processed regardless of block/not block
+        if decision.get("is_surge_event") or is_surge:
+            try:
+                override_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "glue", "surge_override.json")
+                if os.path.exists(override_file):
+                    os.remove(override_file)
+                    print("  [Agent] Surge consumed & cleared.")
+            except:
+                pass
+
+
         if not allowed:
-            print(f"\n[Agent] 🚫 Autonomous execution BLOCKED: {reason}")
+            print(f"\n[Agent] Autonomous execution BLOCKED: {reason}")
+            decision["blocked"] = True
+            decision["blocked_reason"] = reason
             self._log_decision(decision)
             
             # If blocked due to budget/count, signal end of session
@@ -314,10 +351,15 @@ class CarbonSentinelAgent:
         """Build the final decision payload (contract with Track 4 / executor)."""
         footprint_kg = footprint["calculated_footprint_kg"]
         price_per_tonne = credit.get("price_per_tonne_usd", 1.5)
+        breakdown = footprint.get("breakdown", {})
+        is_surge = breakdown.get("is_surge", False)
 
         amount_usd = (footprint_kg / 1000.0) * price_per_tonne
         amount_usd = max(amount_usd, 0.01)
         amount_usdc_wei = int(amount_usd * 1_000_000)
+
+        # Build timestamp safely
+        ts = footprint.get("timestamp", datetime.now(timezone.utc).isoformat())
 
         return {
             "match_id": self.match_id,
@@ -327,15 +369,19 @@ class CarbonSentinelAgent:
             "dest_chain": credit["dest_chain"],
             "amount_usd": round(amount_usd, 6),
             "amount_usdc_wei": amount_usdc_wei,
+            "is_surge_event": is_surge,
             "metadata": {
-                "attribution_ratio": footprint["breakdown"]["attribution_ratio"],
-                "floodlights_on": footprint["breakdown"]["floodlights_on"],
-                "city_ac_load_factor": footprint["breakdown"]["city_ac_load_factor"],
-                "logistics_footprint_kg": footprint["breakdown"]["logistics_footprint_kg"],
+                "attribution_ratio": breakdown.get("attribution_ratio", 0.0),
+                "floodlights_on": breakdown.get("floodlights_on", False),
+                "city_ac_load_factor": breakdown.get("city_ac_load_factor", 1.0),
+                "logistics_footprint_kg": breakdown.get("logistics_footprint_kg", 0.0),
+                "grid_intensity_gco2_kwh": breakdown.get("grid_intensity_gco2_kwh", 0.0),
+                "is_surge": is_surge,
+                "event_type": breakdown.get("event_type", "normal"),
                 "token_symbol": credit["token_symbol"],
                 "price_per_tonne_usd": price_per_tonne,
                 "tvl_usd": credit["tvl_usd"],
-                "timestamp": footprint["timestamp"],
+                "timestamp": ts,
             },
         }
 
