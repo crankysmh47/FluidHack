@@ -82,7 +82,7 @@ class CarbonSentinelAgent:
 
     # == Public entry points ===================================================
 
-    def run_audit_cycle(self, comment: str = None) -> dict | None:
+    def run_audit_cycle(self, comment: str = None, is_demo_mode: bool = False) -> dict | None:
         """
         Execute a full autonomous audit cycle.
         Returns the decision dict, or None if blocked by user controls / budget gate.
@@ -96,6 +96,7 @@ class CarbonSentinelAgent:
 
         print(f"\n{'='*60}")
         print(f"[Agent] Audit Cycle Start - {self.match_id}")
+        print(f"[Agent] Mode: {'DEMO/SIMULATION' if is_demo_mode else 'LIVE NETWORK'}")
         print(f"[Agent] Timestamp: {datetime.now(timezone.utc).isoformat()}")
         print(f"{'='*60}")
 
@@ -105,6 +106,19 @@ class CarbonSentinelAgent:
         # == Step 1: Check match status ========================================
         print("\n[1/4] Checking match status...")
         match_info = self._get_match_info()
+        
+        # GATE LOGIC: Only proceed if match is live OR we are in demo mode
+        is_live = match_info.get("status") == "LIVE" or match_info.get("matchStarted") and not match_info.get("matchEnded")
+        
+        if not is_live and not is_demo_mode:
+            print("[Agent] [!] Gate Blocked: No live match detected and Demo Mode is OFF.")
+            return {
+                "error": "No live match in progress. Agent only operates on live data in Production Mode. Switch to Demo Mode to simulate offsets.",
+                "blocked": True,
+                "reason": "NOT_LIVE",
+                "match_id": self.match_id
+            }
+
         if not match_info:
             print("[Agent] No live match found. Using fallback data.")
             match_info = {

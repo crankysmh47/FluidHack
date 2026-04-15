@@ -6,6 +6,7 @@ import { useWeb3Modal } from '@web3modal/wagmi/react';
 import { useAccount } from 'wagmi';
 import EcologicalBackground from '../components/EcologicalBackground';
 import CursorStars from '../components/CursorStars';
+import pslLogo from '../assets/psl_giants.png';
 
 const API_BASE = window.location.port === '5173' || window.location.port === '3000' ? `http://${window.location.hostname}:5000` : '';
 
@@ -60,7 +61,7 @@ const Sandbox: React.FC = () => {
           <div className="relative group cursor-pointer" onClick={() => navigate('/dashboard')}>
             <div className="absolute inset-0 bg-emerald-500/20 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
             <img 
-              src="/psl_giants.png" 
+              src={pslLogo} 
               alt="PSL Giants" 
               className="w-12 h-12 object-contain relative z-10 drop-shadow-[0_5px_15px_rgba(16,185,129,0.2)]" 
             />

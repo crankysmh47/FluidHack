@@ -145,7 +145,7 @@ export const useCarbonStore = create<CarbonStore>()(
       },
 
       triggerAgentCycle: async () => {
-        const { user, isAgentActive, isPaymentAuthorized, setUiMessage } = get();
+        const { user, isAgentActive, isPaymentAuthorized, isDemoMode, setUiMessage } = get();
         if (!user) return null;
         if (!isAgentActive || !isPaymentAuthorized) {
           console.log('[Store] Agent not active or not authorized, skipping cycle');
@@ -154,7 +154,10 @@ export const useCarbonStore = create<CarbonStore>()(
 
         try {
           set({ lastAgentCycle: { ...get().lastAgentCycle, running: true } });
-          const res = await axios.post(`${API_BASE}/agent/run-cycle`, { user_id: user.id });
+          const res = await axios.post(`${API_BASE}/agent/run-cycle`, { 
+            user_id: user.id,
+            is_demo_mode: isDemoMode 
+          });
           
           if (res.data.ok) {
             // Poll for the result after a short delay (agent runs in a thread)

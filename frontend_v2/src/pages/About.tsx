@@ -1,6 +1,7 @@
 import React from 'react';
 import EcologicalBackground from '../components/EcologicalBackground';
 import CursorStars from '../components/CursorStars';
+import pslLogo from '../assets/psl_giants.png';
 
 const About: React.FC = () => {
   return (
@@ -16,7 +17,7 @@ const About: React.FC = () => {
         <nav className="flex justify-between items-center px-8 py-6 max-w-full mx-auto">
           <div className="flex items-center gap-4 cursor-pointer" onClick={() => navigate('/dashboard')}>
             <img 
-              src="/psl_giants.png" 
+              src={pslLogo} 
               alt="PSL Giants" 
               className="w-12 h-12 object-contain drop-shadow-[0_5px_15px_rgba(16,185,129,0.2)]" 
             />

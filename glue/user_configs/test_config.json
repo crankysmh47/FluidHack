@@ -4,7 +4,7 @@
   "budget_usd": 10000.0,
   "max_tx_usd": 500.0,
   "spent_usd": 280.226365,
-  "is_active": false,
+  "is_active": true,
   "auto_execute": false,
   "spectatorless_mode": false,
   "display_name": "test",

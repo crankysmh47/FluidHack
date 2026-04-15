@@ -5,6 +5,7 @@ import { useWeb3Modal } from '@web3modal/wagmi/react';
 import { useAccount, useSignMessage } from 'wagmi';
 import EcologicalBackground from '../components/EcologicalBackground';
 import CursorStars from '../components/CursorStars';
+import pslLogo from '../assets/psl_giants.png';
 
 const Dashboard: React.FC = () => {
   const { user, remainingBudget, globalTotalOffset, fetchStats, fetchLedger, revokeAgent, forceBuy, logout, uiMessage, isAgentActive, isDemoMode, toggleDemoMode, liveFeed, fetchLiveFeed, isPaymentAuthorized, authorizePayment, isLoading, auditOffsetMinutes, lastAgentCycle, fetchLastAgentCycle, triggerAgentCycle } = useCarbonStore();
@@ -165,7 +166,7 @@ const Dashboard: React.FC = () => {
           <div className="relative group cursor-pointer" onClick={() => navigate('/dashboard')}>
             <div className="absolute inset-0 bg-emerald-500/20 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
             <img 
-              src="/psl_giants.png" 
+              src={pslLogo} 
               alt="PSL Giants" 
               className="w-14 h-14 object-contain relative z-10 drop-shadow-[0_5px_15px_rgba(16,185,129,0.2)]" 
             />

@@ -4,6 +4,7 @@ import { useCarbonStore } from '../store/useCarbonStore'
 import EcologicalBackground from '../components/EcologicalBackground'
 import CursorStars from '../components/CursorStars'
 import heroImage from '../assets/hero.png'
+import pslLogo from '../assets/psl_giants.png';
 
 const API_BASE = window.location.port === '5173' || window.location.port === '3000' ? `http://${window.location.hostname}:5000` : '';
 
@@ -47,7 +48,7 @@ const Landing: React.FC = () => {
         <nav className="flex justify-between items-center px-6 py-4 max-w-7xl mx-auto w-full">
           <div className="flex items-center gap-3">
             <img 
-              src="/psl_giants.png" 
+              src={pslLogo} 
               alt="PSL Logo" 
               className="w-12 h-12 object-contain" 
             />

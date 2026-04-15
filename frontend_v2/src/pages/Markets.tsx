@@ -5,6 +5,7 @@ import { useWeb3Modal } from '@web3modal/wagmi/react';
 import { useAccount } from 'wagmi';
 import EcologicalBackground from '../components/EcologicalBackground';
 import CursorStars from '../components/CursorStars';
+import pslLogo from '../assets/psl_giants.png';
 
 const Markets: React.FC = () => {
   const { user, logout, isDemoMode, toggleDemoMode, liveFeed, fetchLiveFeed, forceBuy, isLoading, uiMessage } = useCarbonStore();
@@ -96,7 +97,7 @@ const Markets: React.FC = () => {
 
           <div className="flex items-center gap-3">
             <img 
-              src="/psl_giants.png" 
+              src={pslLogo} 
               alt="PSL Giants" 
               className="w-10 h-10 object-contain drop-shadow-[0_5px_15px_rgba(16,185,129,0.2)]" 
             />

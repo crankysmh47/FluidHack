@@ -1,9 +1,9 @@
 import React from 'react';
+import pslLogo from '../assets/psl_giants.png';
 
 const PSLBranding: React.FC = () => {
   // Using the new psl_giants asset
-  const pslLogo = "/psl_giants.png";
-  
+
   const teams = [
     { id: 'iu', name: "Islamabad United", color: "text-red-600", icon: "shield" },
     { id: 'kk', name: "Karachi Kings", color: "text-blue-600", icon: "crown" },

@@ -546,13 +546,14 @@ def agent_run_cycle():
     
     body = request.get_json(silent=True) or {}
     user_id = body.get("user_id", "demo_user")
+    is_demo_mode = body.get("is_demo_mode", False)
     
     _LAST_AGENT_CYCLE["running"] = True
     try:
         from agent import CarbonSentinelAgent
         from config import DEFAULT_MATCH
         agent = CarbonSentinelAgent(DEFAULT_MATCH.copy(), user_id=user_id)
-        result = agent.run_audit_cycle()
+        result = agent.run_audit_cycle(is_demo_mode=is_demo_mode)
         _LAST_AGENT_CYCLE["result"] = result
         _LAST_AGENT_CYCLE["timestamp"] = time.time()
         # Mark surge as consumed if it was active
