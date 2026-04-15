@@ -37,7 +37,7 @@ REFI_TOKENS = [
         "name": "Toucan Protocol: Nature Carbon Tonne",
         "chain": "Polygon",
         "chain_id": 137,
-        "address": "0xD838290e877E0188a7A4B25602c5E94fB4d93E29",
+        "address": "0xD838290e877E0188A4A44700463419ED96C16107",
         "category": "carbon",
     },
     {
@@ -45,7 +45,15 @@ REFI_TOKENS = [
         "name": "Universal Basic Offset",
         "chain": "Polygon",
         "chain_id": 137,
-        "address": "0x2B6e21e6E8695C3FE86E574E262227F67d1F73Bc",
+        "address": "0x2B3eCb0991Af0498EA0fAb5720460726f8e049C3",
+        "category": "carbon",
+    },
+    {
+        "symbol": "NBO",
+        "name": "Nature Based Offset",
+        "chain": "Polygon",
+        "chain_id": 137,
+        "address": "0x251cA6A70cbd93Ccd7039B6b708D4cb9683c266C",
         "category": "carbon",
     },
     {
@@ -172,12 +180,19 @@ class DefiLlamaScraper:
     def get_real_prices(self, symbols: list) -> dict:
         """
         Fetch current market prices for ReFi tokens from coins.llama.fi.
+        Handles both Polygon and Celo addresses.
         """
-        # Map symbols to addresses
-        addr_map = {t["symbol"].upper(): t["address"] for t in REFI_TOKENS}
-        coins_str = ",".join([f"polygon:{addr_map[s.upper()]}" for s in symbols if s.upper() in addr_map])
+        coins_to_fetch = []
+        for symbol in symbols:
+            for token in REFI_TOKENS:
+                if token["symbol"].upper() == symbol.upper():
+                    prefix = token["chain"].lower()
+                    coins_to_fetch.append(f"{prefix}:{token['address']}")
         
-        endpoint = f"{COINS_API_URL}/{coins_str}"
+        if not coins_to_fetch:
+            return {}
+
+        endpoint = f"{COINS_API_URL}/{','.join(coins_to_fetch)}"
         try:
             resp = requests.get(endpoint, timeout=10)
             resp.raise_for_status()
@@ -191,7 +206,8 @@ class DefiLlamaScraper:
                     if token["address"].lower() == addr:
                         result[token["symbol"].lower()] = {
                             "price": coin_data.get("price", 0),
-                            "timestamp": coin_data.get("timestamp", 0)
+                            "timestamp": coin_data.get("timestamp", 0),
+                            "chain": token["chain"]
                         }
             return result
         except Exception as e:

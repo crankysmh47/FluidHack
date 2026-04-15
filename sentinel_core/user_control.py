@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import os
 import sys
+import json
+from pathlib import Path
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -19,6 +21,31 @@ load_dotenv()
 
 # Allow importing from sibling/parent directories
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+# ── Local Config Fallback ───────────────────────────────────────────────────
+LOCAL_CONFIG_DIR = Path(os.path.dirname(os.path.abspath(__file__))).parent / "glue" / "user_configs"
+LOCAL_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+
+def _get_local_config_path(user_id: str) -> Path:
+    return LOCAL_CONFIG_DIR / f"{user_id}_config.json"
+
+def _load_local_config(user_id: str) -> dict | None:
+    path = _get_local_config_path(user_id)
+    if path.exists():
+        try:
+            with open(path, "r") as f:
+                return json.load(f)
+        except:
+            return None
+    return None
+
+def _save_local_config(user_id: str, config: dict):
+    path = _get_local_config_path(user_id)
+    try:
+        with open(path, "w") as f:
+            json.dump(config, f, indent=2)
+    except Exception as e:
+        print(f"[UserControl] [!] Failed to save local config: {e}")
 
 
 # ── Supabase helper ───────────────────────────────────────────────────────────
@@ -56,9 +83,15 @@ DEFAULT_CONFIG = {
 
 def get_user_config(user_id: str) -> dict:
     """
-    Fetch a user's agent configuration from Supabase.
-    Returns DEFAULT_CONFIG if Supabase is not available or user doesn't exist yet.
+    Fetch a user's agent configuration from Supabase or local fallback.
+    Returns DEFAULT_CONFIG if no configuration is found.
     """
+    # 1. Try local cache first for speed and offline support
+    local = _load_local_config(user_id)
+    if local:
+        return local
+
+    # 2. Try Supabase
     sb = _get_supabase()
     if not sb:
         return {**DEFAULT_CONFIG, "user_id": user_id}
@@ -67,6 +100,8 @@ def get_user_config(user_id: str) -> dict:
         resp = sb.table("agent_config").select("*").eq("user_id", user_id).execute()
         rows = resp.data
         if rows:
+            # Sync to local
+            _save_local_config(user_id, rows[0])
             return rows[0]
         # Auto-provision defaults for new user
         return create_user_config(user_id)
@@ -77,10 +112,11 @@ def get_user_config(user_id: str) -> dict:
 
 def create_user_config(user_id: str, **overrides) -> dict:
     """
-    Create a new user config row in Supabase with sane defaults.
-    Idempotent — safe to call multiple times.
+    Create a new user config row in Supabase and local cache.
     """
     config = {**DEFAULT_CONFIG, "user_id": user_id, **overrides}
+    _save_local_config(user_id, config)
+    
     sb = _get_supabase()
     if not sb:
         return config
@@ -94,21 +130,20 @@ def create_user_config(user_id: str, **overrides) -> dict:
 
 def update_user_config(user_id: str, **fields) -> dict:
     """
-    Update specific fields of a user's agent config.
-    Valid fields: budget_usd, max_tx_usd, is_active, auto_execute,
-                  spectatorless_mode, display_name
-
-    Examples:
-        update_user_config("0xABC", budget_usd=100.0, max_tx_usd=10.0)
-        update_user_config("0xABC", is_active=False)   # soft revoke
+    Update specific fields of a user's agent config in local cache and Supabase.
     """
     # Always update the timestamp
     fields["updated_at"] = datetime.now(timezone.utc).isoformat()
 
+    # Update local first
+    current = get_user_config(user_id)
+    updated = {**current, **fields}
+    _save_local_config(user_id, updated)
+
     sb = _get_supabase()
     if not sb:
-        print("[UserControl] Supabase not configured — config update skipped.")
-        return get_user_config(user_id)
+        print("[UserControl] Supabase not configured — config updated locally.")
+        return updated
 
     try:
         sb.table("agent_config").upsert(
@@ -116,9 +151,9 @@ def update_user_config(user_id: str, **fields) -> dict:
         ).execute()
         print(f"[UserControl] [V] Config updated for {user_id}: {list(fields.keys())}")
     except Exception as e:
-        print(f"[UserControl] [!] update_user_config failed: {e}")
+        print(f"[UserControl] [!] update_user_config Supabase sync failed: {e}")
 
-    return get_user_config(user_id)
+    return updated
 
 
 def revoke_agent(user_id: str) -> dict:

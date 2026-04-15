@@ -3,7 +3,7 @@ import { useCarbonStore } from '../store/useCarbonStore';
 import { useNavigate } from 'react-router-dom';
 
 const History: React.FC = () => {
-  const { user, fullHistory, fetchFullHistory, agentHistory, fetchAgentHistory, setUiMessage } = useCarbonStore();
+  const { user, fullHistory, fetchFullHistory, agentHistory, fetchAgentHistory } = useCarbonStore();
   const navigate = useNavigate();
 
   useEffect(() => {

@@ -1,0 +1,12 @@
+{
+  "budget_usd": 50.0,
+  "max_tx_usd": 5.0,
+  "spent_usd": 0.0,
+  "authorized_tx_count": 50,
+  "tx_count": 0,
+  "is_active": true,
+  "auto_execute": true,
+  "spectatorless_mode": false,
+  "display_name": "",
+  "user_id": "0xTestUser001"
+}

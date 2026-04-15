@@ -148,12 +148,12 @@ const Sandbox: React.FC = () => {
               </p>
               <button 
                 onClick={() => {
-                  accelerateAudit(5);
-                  setUiMessage("Time-Warp active: Sentinel Audit accelerated by 5 minutes.", "success");
+                  accelerateAudit(1);
+                  setUiMessage("Time-Warp active: Sentinel Audit accelerated by 1 minute.", "success");
                 }}
                 className="bg-emerald-600 text-white px-8 py-4 rounded-md font-headline font-bold hover:brightness-110 transition-all active:scale-95 shadow-lg whitespace-nowrap"
               >
-                Fast Forward Audit (+5m)
+                Fast Forward Audit (+1m)
               </button>
             </div>
           </div>

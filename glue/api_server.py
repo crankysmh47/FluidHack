@@ -242,7 +242,17 @@ def live_feed():
 @app.route("/offsets", methods=["GET"])
 def offsets():
     """Platform-wide carbon offset totals (all users combined)."""
-    return _ok(get_total_offset_stats())
+    stats = get_total_offset_stats()
+    # Fallback to local stats if Supabase is empty or unconfigured
+    if not stats or stats.get("total_footprint_kg_offset", 0) == 0:
+        local = get_total_stats()
+        return _ok({
+            "total_transactions": local.get("total_txs", 0),
+            "total_footprint_kg_offset": local.get("total_footprint_kg_offset", 0.0),
+            "total_spent_usd": local.get("total_spent_usd", 0.0),
+            "last_purchase_at": None
+        })
+    return _ok(stats)
 
 
 @app.route("/offsets/local", methods=["GET"])
@@ -498,6 +508,7 @@ def budget_check(user_id: str):
     return _ok({
         "allowed": allowed,
         "reason": reason,
+        "is_active": cfg.get("is_active", True),
         "budget_usd": budget,
         "spent_usd": spent,
         "remaining_usd": max(0.0, float(round(remaining, 4))),

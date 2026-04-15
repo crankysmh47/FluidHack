@@ -5,7 +5,7 @@ import { useWeb3Modal } from '@web3modal/wagmi/react';
 import { useAccount, useSignMessage } from 'wagmi';
 
 const Dashboard: React.FC = () => {
-  const { user, remainingBudget, totalOffset, logs, fetchStats, fetchLedger, revokeAgent, forceBuy, logout, uiMessage, setUiMessage, isAgentActive, isDemoMode, toggleDemoMode, liveFeed, fetchLiveFeed, isPaymentAuthorized, authorizePayment, isLoading, auditOffsetMinutes } = useCarbonStore();
+  const { user, remainingBudget, globalTotalOffset, fetchStats, fetchLedger, revokeAgent, forceBuy, logout, uiMessage, setUiMessage, isAgentActive, isDemoMode, toggleDemoMode, liveFeed, fetchLiveFeed, isPaymentAuthorized, authorizePayment, isLoading, auditOffsetMinutes } = useCarbonStore();
   const navigate = useNavigate();
   const { open } = useWeb3Modal();
   const { isConnected, address } = useAccount();
@@ -16,26 +16,43 @@ const Dashboard: React.FC = () => {
   const [allowanceAmount, setAllowanceAmount] = useState(50);
   const [txLimitAmount, setTxLimitAmount] = useState(20);
   const [isAuthDismissed, setIsAuthDismissed] = useState(false);
-  const [countdown, setCountdown] = useState('24m 59s');
+  const [countdown, setCountdown] = useState('04m 59s');
+
+  // Terminate & Reset logic
+  const handleTerminateAgent = async () => {
+    await revokeAgent();
+    setIsAuthDismissed(false); // Ensure the overlay shows up immediately
+  };
+
 
   useEffect(() => {
     const timer = setInterval(() => {
       const now = new Date();
-      let minutes = 29 - (now.getMinutes() % 30);
+      // Initial 5 minutes = 4m 59s. 
+      // We want it to cycle every 5 minutes.
+      let minutes = 4 - (now.getMinutes() % 5);
       let seconds = 59 - now.getSeconds();
       
       // Apply manual demo offset
       minutes -= auditOffsetMinutes;
       
-      if (minutes < 0) {
-        minutes = 0;
-        seconds = 0;
+      if (minutes < 0 || (minutes === 0 && seconds <= 0)) {
+        // TIMER ENDED
+        if (isAgentActive && isPaymentAuthorized) {
+          // Trigger autonomous transaction
+          forceBuy(1.0); 
+          setUiMessage("Autonomous Audit Cycle Complete: Protocol executed $1.00 offset.", "success");
+        }
+        // Reset the demo offset to restart the 5m cycle
+        useCarbonStore.setState({ auditOffsetMinutes: 0 });
+        minutes = 4;
+        seconds = 59;
       }
       
-      setCountdown(`${minutes}m ${seconds.toString().padStart(2, '0')}s`);
+      setCountdown(`${minutes.toString().padStart(2, '0')}m ${seconds.toString().padStart(2, '0')}s`);
     }, 1000);
     return () => clearInterval(timer);
-  }, [auditOffsetMinutes]);
+  }, [auditOffsetMinutes, isAgentActive, isPaymentAuthorized, forceBuy, setUiMessage]);
 
   const handleAuthorize = async () => {
     try {
@@ -116,9 +133,9 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
         <div className="flex flex-col">
-          <span className="font-label text-[10px] uppercase tracking-widest text-on-surface-variant/70">Total Offset</span>
+          <span className="font-label text-[10px] uppercase tracking-widest text-on-surface-variant/70">Network Offset</span>
           <div className="flex items-baseline gap-1">
-            <span className="text-2xl font-headline font-light text-primary">{totalOffset.toFixed(2)}</span>
+            <span className="text-2xl font-headline font-light text-primary">{globalTotalOffset.toFixed(2)}</span>
             <span className="text-[10px] text-on-surface-variant font-medium">Tonnes</span>
           </div>
         </div>
@@ -258,6 +275,54 @@ const Dashboard: React.FC = () => {
           </div>
         </section>
 
+        {/* Section: Sentinel Control Center */}
+        {isPaymentAuthorized && (
+          <section className="md:col-span-12">
+            <div className="bg-surface-container-low rounded-[2.5rem] p-8 border border-outline-variant/20 biological-shadow">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+                    <span className="material-symbols-outlined">settings_suggest</span>
+                  </div>
+                  <div>
+                    <h3 className="font-headline font-bold text-xl text-on-surface">Protocol Control Center</h3>
+                    <p className="text-xs text-on-surface-variant">Manage your autonomous agent and manual overrides.</p>
+                  </div>
+                </div>
+                
+                <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
+                  {isPaymentAuthorized ? (
+                    <button 
+                      onClick={handleTerminateAgent}
+                      className="flex-1 md:flex-none px-8 py-4 rounded-2xl font-bold font-headline uppercase text-sm tracking-widest transition-all flex items-center justify-center gap-3 bg-error/10 text-error hover:bg-error/20 border border-error/20 active:scale-95"
+                    >
+                      <span className="material-symbols-outlined">cancel</span>
+                      Terminate Agent
+                    </button>
+                  ) : (
+                    <button 
+                      onClick={() => setIsAuthDismissed(false)}
+                      className="flex-1 md:flex-none px-8 py-4 rounded-2xl font-bold font-headline uppercase text-sm tracking-widest transition-all flex items-center justify-center gap-3 bg-primary text-on-primary shadow-xl hover:brightness-110 active:scale-95"
+                    >
+                      <span className="material-symbols-outlined">add_circle</span>
+                      Spin Up New Agent
+                    </button>
+                  )}
+                  
+                  <button 
+                    onClick={() => setIsBuyModalOpen(true)}
+                    disabled={!isPaymentAuthorized}
+                    className={`flex-1 md:flex-none px-8 py-4 rounded-2xl font-headline font-bold uppercase text-sm tracking-widest shadow-xl flex items-center justify-center gap-3 transition-all ${!isPaymentAuthorized ? 'bg-surface-container-highest text-on-surface-variant/40 cursor-not-allowed' : 'bg-primary text-on-primary hover:brightness-110 active:scale-95'}`}
+                  >
+                    <span>Force Buy</span>
+                    <span className="material-symbols-outlined">bolt</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
         {/* Section: Sentinel Impact Pulse */}
         <section className="md:col-span-12">
           <div className="bg-gradient-to-br from-slate-900 to-slate-800 dark:from-emerald-950 dark:to-slate-950 rounded-[2.5rem] p-8 text-white shadow-2xl relative overflow-hidden group">
@@ -269,13 +334,13 @@ const Dashboard: React.FC = () => {
               <div className="space-y-4">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-400/80">Autonomous Sentinel Impact</span>
+                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-400/80">Network Sentinel Impact</span>
                 </div>
                 <h3 className="text-4xl font-headline font-extrabold tracking-tighter">
-                  {Math.floor(totalOffset * 50)} <span className="text-emerald-400">Tree Years</span>
+                  {Math.floor(globalTotalOffset * 50)} <span className="text-emerald-400">Tree Years</span>
                 </h3>
                 <p className="text-slate-400 text-sm leading-relaxed max-w-xs">
-                  Your Sentinel has autonomously offset the equivalent of {(totalOffset * 50).toFixed(0)} full years of a mature tree's carbon sequestration capacity.
+                  The Sentinel Network has collectively offset the equivalent of {(globalTotalOffset * 50).toFixed(0)} full years of a mature tree's carbon sequestration capacity.
                 </p>
               </div>
 
@@ -322,44 +387,6 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
         </section>
-
-        {/* Section: Sentinel Control Center */}
-        {isPaymentAuthorized && (
-          <section className="md:col-span-12">
-            <div className="bg-surface-container-low rounded-[2.5rem] p-8 border border-outline-variant/20 biological-shadow">
-              <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
-                    <span className="material-symbols-outlined">settings_suggest</span>
-                  </div>
-                  <div>
-                    <h3 className="font-headline font-bold text-xl text-on-surface">Protocol Control Center</h3>
-                    <p className="text-xs text-on-surface-variant">Manage your autonomous agent and manual overrides.</p>
-                  </div>
-                </div>
-                
-                <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
-                  <button 
-                    onClick={revokeAgent}
-                    disabled={!isAgentActive}
-                    className={`flex-1 md:flex-none px-8 py-4 rounded-2xl font-bold font-headline uppercase text-sm tracking-widest transition-all flex items-center justify-center gap-3 ${!isAgentActive ? 'bg-surface-container-highest text-on-surface-variant opacity-50 cursor-not-allowed' : 'bg-error/10 text-error hover:bg-error/20 border border-error/20 active:scale-95'}`}
-                  >
-                    <span className="material-symbols-outlined">{isAgentActive ? 'front_hand' : 'block'}</span>
-                    {isAgentActive ? 'Revoke Agent' : 'Agent Revoked'}
-                  </button>
-                  
-                  <button 
-                    onClick={() => setIsBuyModalOpen(true)}
-                    className="flex-1 md:flex-none bg-primary text-on-primary px-8 py-4 rounded-2xl font-headline font-bold uppercase text-sm tracking-widest shadow-xl flex items-center justify-center gap-3 hover:brightness-110 active:scale-95 transition-all"
-                  >
-                    <span>Force Buy</span>
-                    <span className="material-symbols-outlined">bolt</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </section>
-        )}
       </main>
 
       {/* Contextual Actions Overlay - Removed to avoid shadowing */}
@@ -386,89 +413,84 @@ const Dashboard: React.FC = () => {
 
       {/* Authorization Overlay - Only visible if wallet is not connected or payment not authorized and not dismissed */}
       {(!isConnected || !isPaymentAuthorized) && !isAuthDismissed && (
-        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-md flex flex-col items-center justify-center p-6">
-          <div className="max-w-2xl w-full text-center">
+        <div className="fixed inset-0 z-50 bg-white/70 dark:bg-slate-900/60 backdrop-blur-md flex flex-col items-center justify-center p-6">
+          <div className="max-w-xl w-full bg-emerald-950 rounded-[3rem] p-10 md:p-12 shadow-[0_32px_64px_-12px_rgba(0,0,0,0.5)] border border-emerald-500/30 text-center relative overflow-hidden">
+            {/* Decorative Glow */}
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-1 bg-emerald-500/50 blur-xl"></div>
             
-            <span className="material-symbols-outlined text-6xl text-primary mb-6 animate-pulse">
+            <span className="material-symbols-outlined text-6xl text-emerald-400 mb-6 animate-pulse">
               {!isConnected ? 'account_balance_wallet' : 'verified_user'}
             </span>
             
-            <h2 className="text-4xl md:text-5xl font-headline font-extrabold tracking-tight mb-4 text-on-surface">
-              {!isConnected ? 'Link Your Web3 Identity' : 'Authorize Agent Payment'}
+            <h2 className="text-3xl md:text-4xl font-headline font-extrabold tracking-tight mb-4 text-white">
+              {!isConnected ? 'Link Identity' : 'Authorize Agent'}
             </h2>
             
-            <p className="text-lg text-on-surface-variant mb-10 max-w-xl mx-auto leading-relaxed">
+            <p className="text-base text-emerald-200/70 mb-10 max-w-sm mx-auto leading-relaxed">
               {!isConnected 
-                ? "Connect your MetaMask or hardware wallet to bridge your Web2 account to the WireFluid testnet. This is required for on-chain settlement."
-                : "Grant the Sentinel AI protocol permission to autonomously execute carbon offsets on your behalf up to your designated budget limits."}
+                ? "Connect your wallet to bridge to the WireFluid testnet for on-chain settlement."
+                : "Grant the Sentinel protocol permission to execute offsets within your limits."}
             </p>
 
             {!isConnected ? (
               <button 
                 onClick={() => open()}
-                className="clinical-gradient text-white px-10 py-5 rounded-2xl font-headline font-bold text-xl uppercase tracking-widest biological-shadow active:scale-95 transition-all w-full max-w-md mx-auto flex justify-center items-center gap-3 hover:brightness-110 duration-200"
+                className="bg-emerald-500 hover:bg-emerald-400 text-emerald-950 px-10 py-5 rounded-2xl font-headline font-bold text-lg uppercase tracking-widest shadow-xl active:scale-95 transition-all w-full max-w-xs mx-auto flex justify-center items-center gap-3 duration-200"
               >
                 <span className="material-symbols-outlined">link</span>
                 Connect Wallet
               </button>
             ) : (
-              <div className="flex flex-col items-center gap-6 w-full max-w-md mx-auto">
-                <div className="w-full bg-surface-container-high p-6 rounded-2xl border border-outline/20">
-                  <label className="block font-label text-xs text-on-surface-variant uppercase tracking-widest mb-3">
-                    Designate AI Spending Allowance (USD)
+              <div className="flex flex-col items-center gap-6 w-full max-w-sm mx-auto">
+                <div className="w-full bg-emerald-900/40 p-6 rounded-2xl border border-emerald-500/20 text-left">
+                  <label className="block font-label text-[10px] text-emerald-300 uppercase tracking-[0.2em] mb-3">
+                    Allowance (USD)
                   </label>
                   <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-primary font-bold text-xl">$</span>
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-400 font-bold text-xl">$</span>
                     <input 
                       type="number" 
                       value={allowanceAmount}
                       onChange={(e) => setAllowanceAmount(Number(e.target.value))}
-                      className="w-full bg-surface-container-lowest border-none rounded-xl py-4 pl-10 pr-4 text-2xl font-headline font-bold focus:ring-2 focus:ring-primary outline-none"
+                      className="w-full bg-emerald-950/60 border-none rounded-xl py-3 pl-10 pr-4 text-xl font-headline font-bold text-white focus:ring-1 focus:ring-emerald-500 outline-none"
                     />
                   </div>
-                  <p className="mt-4 text-[11px] text-on-surface-variant leading-relaxed">
-                    The agent will autonomously settle carbon offsets up to this amount using its internal efficient wallet.
-                  </p>
                 </div>
 
-                <div className="w-full bg-surface-container-high p-6 rounded-2xl border border-outline/20">
-                  <label className="block font-label text-xs text-on-surface-variant uppercase tracking-widest mb-3">
-                    Max Transactions (Preimages Authorised)
+                <div className="w-full bg-emerald-900/40 p-6 rounded-2xl border border-emerald-500/20 text-left">
+                  <label className="block font-label text-[10px] text-emerald-300 uppercase tracking-[0.2em] mb-3">
+                    Transaction Limit
                   </label>
                   <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-primary font-bold text-xl">#</span>
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-400 font-bold text-xl">#</span>
                     <input 
                       type="number" 
                       value={txLimitAmount}
                       onChange={(e) => setTxLimitAmount(Number(e.target.value))}
-                      className="w-full bg-surface-container-lowest border-none rounded-xl py-4 pl-10 pr-4 text-2xl font-headline font-bold focus:ring-2 focus:ring-primary outline-none"
+                      className="w-full bg-emerald-950/60 border-none rounded-xl py-3 pl-10 pr-4 text-xl font-headline font-bold text-white focus:ring-1 focus:ring-emerald-500 outline-none"
                     />
                   </div>
-                  <p className="mt-4 text-[11px] text-on-surface-variant leading-relaxed">
-                    For enhanced protection, authorize a fixed number of transactions. The agent will require re-authorization after this count.
-                  </p>
                 </div>
 
                 <button 
                   onClick={handleAuthorize}
                   disabled={isLoading}
-                  className="bg-primary-container text-on-primary-container px-10 py-5 rounded-2xl font-headline font-bold text-xl uppercase tracking-widest shadow-2xl active:scale-95 transition-all w-full flex justify-center items-center gap-3 disabled:opacity-70 hover:scale-[1.02] duration-200"
+                  className="bg-emerald-500 hover:bg-emerald-400 text-emerald-950 px-10 py-5 rounded-2xl font-headline font-bold text-lg uppercase tracking-widest shadow-xl active:scale-95 transition-all w-full flex justify-center items-center gap-3 disabled:opacity-70 duration-200 mt-2"
                 >
                   <span className="material-symbols-outlined">
                     {isLoading ? 'hourglass_empty' : 'signature'}
                   </span>
-                  {isLoading ? 'Awaiting Signature...' : 'Authorize Spending'}
+                  {isLoading ? 'Awaiting...' : 'Authorize'}
                 </button>
               </div>
             )}
 
             <button 
               onClick={() => setIsAuthDismissed(true)}
-              className="mt-8 text-on-surface-variant font-label text-xs uppercase tracking-widest hover:text-primary transition-colors cursor-pointer"
+              className="mt-8 text-emerald-500/40 font-label text-[10px] uppercase tracking-widest hover:text-emerald-400 transition-colors cursor-pointer"
             >
-              Skip for now - View Live Dashboard
+              Skip - View Dashboard
             </button>
-
           </div>
         </div>
       )}

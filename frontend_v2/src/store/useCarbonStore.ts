@@ -22,6 +22,7 @@ interface CarbonStore {
   // Counters
   remainingBudget: number;
   totalOffset: number;
+  globalTotalOffset: number;
   
   // Logs
   logs: SystemLog[];
@@ -44,7 +45,9 @@ interface CarbonStore {
   fetchFullHistory: () => Promise<void>;
   fetchAgentHistory: () => Promise<void>;
   revokeAgent: () => Promise<void>;
+  restoreAgent: () => Promise<void>;
   forceBuy: (amount: number) => Promise<void>;
+  setPaymentAuthorized: (val: boolean) => void;
   
   // UI State
   isLoading: boolean;
@@ -73,6 +76,7 @@ export const useCarbonStore = create<CarbonStore>()(
       user: null,
       remainingBudget: 0,
       totalOffset: 0,
+      globalTotalOffset: 0,
       logs: [],
       fullHistory: [],
       agentHistory: [],
@@ -132,8 +136,6 @@ export const useCarbonStore = create<CarbonStore>()(
         }
       },
       uiMessage: null,
-      auditOffsetMinutes: 0,
-      accelerateAudit: (mins) => set((state) => ({ auditOffsetMinutes: state.auditOffsetMinutes + mins })),
 
       setUiMessage: (text, type) => {
         set({ uiMessage: { text, type } });
@@ -179,25 +181,36 @@ export const useCarbonStore = create<CarbonStore>()(
           set({ isLoading: false });
         }
       },
+logout: () => {
+  set({ user: null, logs: [], remainingBudget: 0, totalOffset: 0, globalTotalOffset: 0 });
+},
 
-      logout: () => {
-        set({ user: null, logs: [], remainingBudget: 0, totalOffset: 0 });
-      },
+fetchStats: async () => {
+  const { user } = get();
+  if (!user) return;
+  try {
+    // Fetch user-specific stats
+    const res = await axios.get(`${API_BASE}/user/${user.id}/budget-check?amount_usd=0`);
 
-      fetchStats: async () => {
-        const { user } = get();
-        if (!user) return;
-        try {
-          const res = await axios.get(`${API_BASE}/user/${user.id}/budget-check?amount_usd=0`);
-          if (res.data.ok) {
-            const isDemo = get().isDemoMode;
-            const multiplier = isDemo ? 1000 : 1;
-            
+    // Fetch platform-wide stats
+    const globalRes = await axios.get(`${API_BASE}/offsets`);
+
+    if (res.data.ok) {
+      const isDemo = get().isDemoMode;
+      const multiplier = isDemo ? 1000 : 1;
+
+      let globalTotal = res.data.data.spent_usd * 0.0045; // Default to user spent if global fails
+      if (globalRes.data.ok) {
+        globalTotal = (globalRes.data.data.total_footprint_kg_offset || 0) / 1000.0;
+      }
+
             set({ 
               remainingBudget: (isDemo && res.data.data.remaining_usd < 5) ? 5000 : res.data.data.remaining_usd * multiplier,
               totalOffset: res.data.data.spent_usd * 0.0045 * multiplier,
+              globalTotalOffset: globalTotal * multiplier,
               authorizedTxCount: res.data.data.authorized_tx_count || 0,
-              remainingTxCount: (res.data.data.authorized_tx_count || 0) - (res.data.data.tx_count || 0)
+              remainingTxCount: (res.data.data.authorized_tx_count || 0) - (res.data.data.tx_count || 0),
+              isAgentActive: !!res.data.data.is_active
             });
 
             // AUTO-TERMINATION LOGIC
@@ -272,6 +285,8 @@ export const useCarbonStore = create<CarbonStore>()(
         }
       },
 
+      setPaymentAuthorized: (val) => set({ isPaymentAuthorized: val }),
+
       revokeAgent: async () => {
         const { user } = get();
         if (!user) return;
@@ -279,12 +294,30 @@ export const useCarbonStore = create<CarbonStore>()(
         try {
           const res = await axios.post(`${API_BASE}/user/${user.id}/revoke`);
           if (res.data.ok) {
-            set({ isAgentActive: false });
-            get().setUiMessage("AI Agent revoked successfully.", "success");
+            set({ isAgentActive: false, isPaymentAuthorized: false });
+            get().setUiMessage("AI Agent terminated. Protocol deactivated.", "success");
           }
         } catch (err) {
-          set({ error: "Failed to revoke agent" });
-          get().setUiMessage("Failed to revoke agent.", "error");
+          set({ error: "Failed to terminate agent" });
+          get().setUiMessage("Failed to terminate agent.", "error");
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+
+      restoreAgent: async () => {
+        const { user } = get();
+        if (!user) return;
+        set({ isLoading: true });
+        try {
+          const res = await axios.post(`${API_BASE}/user/${user.id}/restore`);
+          if (res.data.ok) {
+            set({ isAgentActive: true });
+            get().setUiMessage("AI Agent restored successfully.", "success");
+          }
+        } catch (err) {
+          set({ error: "Failed to restore agent" });
+          get().setUiMessage("Failed to restore agent.", "error");
         } finally {
           set({ isLoading: false });
         }
@@ -319,7 +352,8 @@ export const useCarbonStore = create<CarbonStore>()(
       partialize: (state) => ({ 
         user: state.user, 
         isDemoMode: state.isDemoMode,
-        isPaymentAuthorized: state.isPaymentAuthorized
+        isPaymentAuthorized: state.isPaymentAuthorized,
+        isAgentActive: state.isAgentActive
       }),
     }
   )

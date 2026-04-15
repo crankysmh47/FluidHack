@@ -78,6 +78,12 @@ class CarbonSentinelAgent:
         Execute a full autonomous audit cycle.
         Returns the decision dict, or None if blocked by user controls / budget gate.
         """
+        # ── Pre-check: Is the agent even active? ─────────────────────────────
+        user_cfg = get_user_config(self.user_id)
+        if not user_cfg.get("is_active", True):
+            print(f"\n[Agent] [!] Audit Cycle skipped: Agent is currently REVOKED for user {self.user_id}")
+            return None
+
         print(f"\n{'='*60}")
         print(f"[Agent] Audit Cycle Start - {self.match_id}")
         print(f"[Agent] Timestamp: {datetime.now(timezone.utc).isoformat()}")

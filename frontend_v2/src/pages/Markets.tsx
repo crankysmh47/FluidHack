@@ -1,14 +1,10 @@
 import React, { useEffect } from 'react';
 import { useCarbonStore } from '../store/useCarbonStore';
 import { useNavigate } from 'react-router-dom';
-import { useWeb3Modal } from '@web3modal/wagmi/react';
-import { useAccount } from 'wagmi';
 
 const Markets: React.FC = () => {
-  const { user, logout, isDemoMode, toggleDemoMode, liveFeed, fetchLiveFeed, setUiMessage, forceBuy, isLoading } = useCarbonStore();
+  const { user, logout, isDemoMode, toggleDemoMode, liveFeed, fetchLiveFeed, forceBuy, isLoading } = useCarbonStore();
   const navigate = useNavigate();
-  const { open } = useWeb3Modal();
-  const { isConnected: wagmiConnected } = useAccount();
 
   const [buyingId, setBuyingId] = React.useState<string | null>(null);
   const [buyStatus, setBuyStatus] = React.useState<string>('Preparing');
