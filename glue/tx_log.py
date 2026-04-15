@@ -39,6 +39,7 @@ def append_tx(
     source: str = "agent",
     preimage_index: int = None,
     explorer_url: str = None,
+    comment: str = None,
     extra: dict = None,
 ) -> dict:
     """
@@ -57,6 +58,7 @@ def append_tx(
         source:         "agent" | "force_buy"
         preimage_index: Index in hash_chain.json
         explorer_url:   Full block explorer URL
+        comment:        Human-readable reason for the transaction
         extra:          Any extra metadata
 
     Returns:
@@ -72,6 +74,7 @@ def append_tx(
         "dest_chain": dest_chain,
         "status": status,
         "source": source,
+        "comment": comment,
         "preimage_index": preimage_index,
         "explorer_url": explorer_url or (f"https://wirefluidscan.com/tx/{tx_hash}" if tx_hash else None),
         "logged_at": datetime.now(timezone.utc).isoformat(),

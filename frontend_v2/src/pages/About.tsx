@@ -4,19 +4,26 @@ import CursorStars from '../components/CursorStars';
 
 const About: React.FC = () => {
   return (
-    <div className="bg-surface text-on-surface font-body selection:bg-primary-fixed selection:text-on-primary-fixed min-h-screen relative">
+    <div className="bg-transparent text-on-surface font-body selection:bg-primary-fixed selection:text-on-primary-fixed min-h-screen relative">
       {/* Ecological Background */}
       <EcologicalBackground />
-      
+
       {/* Cursor Stars */}
       <CursorStars />
-      
+
       {/* TopAppBar */}
       <header className="fixed top-0 w-full z-50 bg-[#f8f9fa] dark:bg-slate-900">
         <nav className="flex justify-between items-center px-8 py-4 max-w-full mx-auto">
           <div className="flex items-center gap-3">
-            <span className="material-symbols-outlined text-[#10B981]">biotech</span>
-            <span className="text-xl font-bold tracking-tighter text-emerald-600 dark:text-emerald-400 font-headline">Carbon Sentinel</span>
+            <img 
+              src="https://raw.githubusercontent.com/Tvwap/Tvimage/main/psl.png" 
+              alt="PSL Logo" 
+              className="w-10 h-10 object-contain" 
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = "https://upload.wikimedia.org/wikipedia/commons/d/d4/Pakistan_Super_League_X.png";
+              }}
+            />
+            <span className="text-xl font-bold tracking-tighter text-emerald-600 dark:text-emerald-400 font-headline">PSL Carbon Sentinel</span>
           </div>
           <div className="hidden md:flex items-center gap-8 text-slate-500 dark:text-slate-400 font-headline tracking-tight font-light">
             <a className="hover:bg-emerald-50/50 dark:hover:bg-emerald-900/20 transition-colors px-3 py-1" href="#">Sentinel</a>

@@ -16,13 +16,13 @@ const History: React.FC = () => {
   }, [user, fetchFullHistory, fetchAgentHistory]);
 
   return (
-    <div className="bg-surface text-on-surface min-h-screen pb-24 relative">
+    <div className="bg-transparent text-on-surface min-h-screen pb-24 relative">
       {/* Ecological Background */}
       <EcologicalBackground />
-      
+
       {/* Cursor Stars */}
       <CursorStars />
-      
+
       {/* TopAppBar */}
       <header className="sticky top-0 z-40 bg-slate-50/70 dark:bg-slate-900/70 backdrop-blur-xl flex flex-col w-full px-6 pt-6 pb-4 border-b border-outline-variant/10">
         <div className="flex items-center gap-4 mb-2">
@@ -32,8 +32,16 @@ const History: React.FC = () => {
           >
             <span className="material-symbols-outlined">arrow_back</span>
           </button>
+          <img 
+            src="https://raw.githubusercontent.com/Tvwap/Tvimage/main/psl.png" 
+            alt="PSL Logo" 
+            className="w-10 h-10 object-contain" 
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = "https://upload.wikimedia.org/wikipedia/commons/d/d4/Pakistan_Super_League_X.png";
+            }}
+          />
           <h1 className="text-3xl font-headline font-extrabold tracking-tighter text-on-surface">
-            Legacy <span className="text-primary italic">Ledger</span>
+            PSL Legacy <span className="text-primary italic">Ledger</span>
           </h1>
         </div>
         <p className="text-sm text-on-surface-variant max-w-md">

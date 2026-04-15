@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useCarbonStore } from '../store/useCarbonStore'
 import EcologicalBackground from '../components/EcologicalBackground'
 import CursorStars from '../components/CursorStars'
+import heroImage from '../assets/hero.png'
 
 const API_BASE = window.location.port === '5173' || window.location.port === '3000' ? `http://${window.location.hostname}:5000` : '';
 
@@ -34,7 +35,7 @@ const Landing: React.FC = () => {
   };
 
   return (
-    <div className="bg-background font-body text-on-surface antialiased min-h-screen relative">
+    <div className="bg-transparent font-body text-on-surface antialiased min-h-screen relative">
       {/* Ecological Background */}
       <EcologicalBackground />
       
@@ -44,9 +45,16 @@ const Landing: React.FC = () => {
       {/* TopAppBar */}
       <header className="absolute top-0 w-full z-50">
         <nav className="flex justify-between items-center px-6 py-4 max-w-7xl mx-auto w-full">
-          <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-emerald-500">monitoring</span>
-            <span className="text-xl font-bold text-slate-900 font-headline tracking-tight">Carbon Sentinel</span>
+          <div className="flex items-center gap-3">
+            <img 
+              src="https://raw.githubusercontent.com/Tvwap/Tvimage/main/psl.png" 
+              alt="PSL Logo" 
+              className="w-10 h-10 object-contain" 
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = "https://upload.wikimedia.org/wikipedia/commons/d/d4/Pakistan_Super_League_X.png";
+              }}
+            />
+            <span className="text-xl font-bold text-slate-900 font-headline tracking-tight">PSL Carbon Sentinel</span>
           </div>
           <div className="hidden md:flex items-center gap-8">
             <a className="text-emerald-600 font-medium font-headline tracking-tight hover:bg-slate-100/50 transition-colors px-3 py-1 rounded" href="#">Protocol</a>
@@ -164,26 +172,23 @@ const Landing: React.FC = () => {
               </div>
             </div>
 
-            <div className="lg:col-span-5 relative hidden lg:block">
-              {/* Abstract Visual from original */}
-              <div className="relative w-full aspect-square">
-                <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-primary/10 to-transparent blur-3xl"></div>
-                <div className="relative glass-panel biological-shadow p-8 rounded-3xl border border-white/20 transform rotate-3">
-                  <img 
-                    className="w-full h-auto rounded-xl shadow-[0_0_40px_rgba(16,185,129,0.3)] object-cover" 
-                    alt="Close-up high-tech minimalist data interface with glowing green nature elements" 
-                    src={`${API_BASE}/landing_eco_tech.png`} 
-                  />
-                  <div className="mt-6 flex justify-between items-end">
-                    <div>
-                      <p className="text-xs text-on-surface-variant uppercase tracking-widest font-semibold mb-1">Atmospheric Impact</p>
-                      <p className="text-3xl font-headline font-bold text-primary">42.84<span className="text-sm ml-1 text-on-surface-variant">tCO2e</span></p>
-                    </div>
-                    <div className="w-24 h-12">
-                      <svg className="w-full h-full stroke-primary fill-none stroke-2" viewBox="0 0 100 40">
-                        <path d="M0 35 Q 25 10, 50 25 T 100 5"></path>
-                      </svg>
-                    </div>
+            <div className="lg:col-span-5 relative">
+              {/* Hero Image */}
+              <div className="relative w-full">
+                <img
+                  className="w-full h-auto rounded-2xl shadow-2xl"
+                  alt="Eco-friendly technology visualization"
+                  src={heroImage}
+                />
+                <div className="mt-6 flex justify-between items-end">
+                  <div>
+                    <p className="text-xs text-on-surface-variant uppercase tracking-widest font-semibold mb-1">Atmospheric Impact</p>
+                    <p className="text-3xl font-headline font-bold text-primary">42.84<span className="text-sm ml-1 text-on-surface-variant">tCO2e</span></p>
+                  </div>
+                  <div className="w-24 h-12">
+                    <svg className="w-full h-full stroke-primary fill-none stroke-2" viewBox="0 0 100 40">
+                      <path d="M0 35 Q 25 10, 50 25 T 100 5"></path>
+                    </svg>
                   </div>
                 </div>
               </div>

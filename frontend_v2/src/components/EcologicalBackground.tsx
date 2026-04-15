@@ -3,13 +3,25 @@ import React from 'react';
 const EcologicalBackground: React.FC = () => {
   return (
     <div className="fixed inset-0 -z-10 pointer-events-none overflow-hidden">
-      {/* Pale greenish background gradient */}
+      {/* Pale greenish background gradient with gold hints */}
       <div 
         className="absolute inset-0"
         style={{
-          background: 'linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 25%, #f1f8e9 50%, #dcedc8 75%, #e8f5e9 100%)',
+          background: 'linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 25%, #fff9c4 50%, #dcedc8 75%, #e8f5e9 100%)',
         }}
       />
+      
+      {/* Floating Gold Stars/Sparkles for PSL feel */}
+      <div className="absolute top-1/4 left-1/2 animate-float-slow opacity-20">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="#FFD700">
+          <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
+        </svg>
+      </div>
+      <div className="absolute bottom-1/3 right-1/4 animate-float-medium opacity-15">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="#FFD700">
+          <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
+        </svg>
+      </div>
       
       {/* Floating leaf SVGs */}
       <div className="absolute top-20 left-10 animate-float-slow opacity-30">

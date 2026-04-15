@@ -33,7 +33,7 @@ const Sandbox: React.FC = () => {
   };
 
   return (
-    <div className="bg-background text-on-background font-body selection:bg-primary-fixed min-h-screen pb-32 relative">
+    <div className="bg-transparent text-on-background font-body selection:bg-primary-fixed min-h-screen pb-32 relative">
       {/* Ecological Background */}
       <EcologicalBackground />
       
@@ -53,7 +53,15 @@ const Sandbox: React.FC = () => {
           <div className="w-10 h-10 rounded-full bg-surface-container-highest flex items-center justify-center overflow-hidden">
             <span className="font-headline font-bold text-lg text-primary-container">{user?.name.charAt(0).toUpperCase()}</span>
           </div>
-          <h1 className="text-3xl font-light tracking-tight font-headline text-emerald-600">Carbon Sentinel Sandbox</h1>
+          <img 
+            src="https://raw.githubusercontent.com/Tvwap/Tvimage/main/psl.png" 
+            alt="PSL Logo" 
+            className="w-10 h-10 object-contain" 
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = "https://upload.wikimedia.org/wikipedia/commons/d/d4/Pakistan_Super_League_X.png";
+            }}
+          />
+          <h1 className="text-3xl font-light tracking-tight font-headline text-emerald-600">PSL Carbon Sandbox</h1>
         </div>
         <div className="flex items-center gap-4">
           <button className="material-symbols-outlined text-emerald-600 text-2xl hover:opacity-80 transition-opacity active:scale-95 duration-200 ease-out">monitoring</button>

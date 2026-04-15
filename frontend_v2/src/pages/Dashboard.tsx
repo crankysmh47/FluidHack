@@ -41,6 +41,7 @@ const Dashboard: React.FC = () => {
   // Spin up new agent — open the auth modal
   const handleSpinUpAgent = () => {
     setIsAuthDismissed(false);
+    useCarbonStore.setState({ isPaymentAuthorized: false });
   };
 
   // ── Bulletproof 5-Minute Agent Cycle Timer ───────────────────────────
@@ -131,7 +132,7 @@ const Dashboard: React.FC = () => {
   const agentResult = lastAgentCycle?.result;
 
   return (
-    <div className="bg-surface text-on-surface min-h-screen pb-24 relative">
+    <div className="bg-transparent text-on-surface min-h-screen pb-24 relative">
       {/* Ecological Background */}
       <EcologicalBackground />
       
@@ -147,19 +148,29 @@ const Dashboard: React.FC = () => {
           </div>
         )}
 
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-secondary-container flex items-center justify-center overflow-hidden">
-            <span className="font-headline font-bold text-primary-container">{user?.name.charAt(0).toUpperCase()}</span>
-          </div>
-          <div className="flex flex-col">
-            <span className="font-headline font-semibold text-emerald-600 dark:text-emerald-400 tracking-tighter text-xl leading-none">
-              {user?.name}'s Dashboard
-            </span>
-            <div className="flex items-center gap-1.5 mt-1">
-              <span className={`w-1.5 h-1.5 rounded-full ${isPaymentAuthorized && isAgentActive ? 'bg-emerald-500 animate-pulse' : 'bg-red-400'}`}></span>
-              <span className={`text-[10px] font-bold uppercase tracking-wider ${isPaymentAuthorized && isAgentActive ? 'text-emerald-500' : 'text-red-400'}`}>
-                {isPaymentAuthorized && isAgentActive ? 'Agent Online' : 'Agent Offline'}
+        <div className="flex items-center gap-4">
+          <img 
+            src="https://raw.githubusercontent.com/Tvwap/Tvimage/main/psl.png" 
+            alt="PSL Logo" 
+            className="w-12 h-12 object-contain" 
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = "https://upload.wikimedia.org/wikipedia/commons/d/d4/Pakistan_Super_League_X.png";
+            }}
+          />
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-secondary-container flex items-center justify-center overflow-hidden">
+              <span className="font-headline font-bold text-primary-container">{user?.name.charAt(0).toUpperCase()}</span>
+            </div>
+            <div className="flex flex-col">
+              <span className="font-headline font-semibold text-emerald-600 dark:text-emerald-400 tracking-tighter text-xl leading-none">
+                {user?.name}'s Dashboard
               </span>
+              <div className="flex items-center gap-1.5 mt-1">
+                <span className={`w-1.5 h-1.5 rounded-full ${isPaymentAuthorized && isAgentActive ? 'bg-emerald-500 animate-pulse' : 'bg-red-400'}`}></span>
+                <span className={`text-[10px] font-bold uppercase tracking-wider ${isPaymentAuthorized && isAgentActive ? 'text-emerald-500' : 'text-red-400'}`}>
+                  {isPaymentAuthorized && isAgentActive ? 'Agent Online' : 'Agent Offline'}
+                </span>
+              </div>
             </div>
           </div>
         </div>

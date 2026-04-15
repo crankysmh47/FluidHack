@@ -1,0 +1,13 @@
+{
+  "budget_usd": 50.0,
+  "max_tx_usd": 5.0,
+  "spent_usd": 3.0,
+  "authorized_tx_count": 50,
+  "tx_count": 4,
+  "is_active": true,
+  "auto_execute": true,
+  "spectatorless_mode": false,
+  "display_name": "",
+  "user_id": "demo_user",
+  "updated_at": "2026-04-15T11:56:52.644119+00:00"
+}

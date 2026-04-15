@@ -62,7 +62,7 @@ const Markets: React.FC = () => {
   ];
 
   return (
-    <div className="bg-surface text-on-surface min-h-screen pb-32 relative">
+    <div className="bg-transparent text-on-surface min-h-screen pb-32 relative">
       {/* Ecological Background */}
       <EcologicalBackground />
 
@@ -81,8 +81,16 @@ const Markets: React.FC = () => {
           <button onClick={() => navigate('/dashboard')} className="p-2 hover:bg-surface-container rounded-full">
             <span className="material-symbols-outlined">arrow_back</span>
           </button>
+          <img 
+            src="https://raw.githubusercontent.com/Tvwap/Tvimage/main/psl.png" 
+            alt="PSL Logo" 
+            className="w-10 h-10 object-contain" 
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = "https://upload.wikimedia.org/wikipedia/commons/d/d4/Pakistan_Super_League_X.png";
+            }}
+          />
           <span className="font-headline font-semibold text-emerald-600 dark:text-emerald-400 tracking-tighter text-xl">
-            Carbon Markets
+            PSL Carbon Markets
           </span>
         </div>
         <div className="flex gap-3 items-center">

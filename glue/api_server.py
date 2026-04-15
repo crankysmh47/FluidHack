@@ -437,6 +437,62 @@ def demo_faucet():
         })
 
 
+@app.route("/demo/event", methods=["POST"])
+def demo_event():
+    """
+    Manually fire a match event (Wicket, Six, Over) into the rapid-fire orchestrator.
+    Body: {"event": "WICKET", "reason": "Optional comment", "amount_usd": 0.5}
+    """
+    body = request.get_json(silent=True) or {}
+    event_type = body.get("event", "MANUAL_TRIGGER")
+    reason = body.get("reason", f"Demo: {event_type}")
+    amount = float(body.get("amount_usd", 0.5))
+    
+    event_file = _GLUE_DIR / "match_events.jsonl"
+    event = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "event": event_type,
+        "reason": reason,
+        "amount_usd": amount
+    }
+    
+    with open(event_file, "a", encoding="utf-8") as f:
+        f.write(json.dumps(event) + "\n")
+        
+    return _ok({"message": f"Event {event_type} queued.", "event": event})
+
+
+@app.route("/demo/rapid-fire-sequence", methods=["POST"])
+def demo_rapid_sequence():
+    """
+    Triggers a pre-defined sequence of 3 events over a short period.
+    (In a real production app, this might use a task queue, but for demo we just file-drop).
+    """
+    import threading
+    
+    def run_sequence():
+        events = [
+            {"event": "WICKET", "reason": "PSL Live: Wicket fallen!", "amount_usd": 0.5, "delay": 2},
+            {"event": "SIX", "reason": "PSL Live: Massive SIX!", "amount_usd": 0.75, "delay": 8},
+            {"event": "GRID_SPIKE", "reason": "Grid Alert: Heavy load detected", "amount_usd": 1.25, "delay": 5},
+        ]
+        
+        event_file = _GLUE_DIR / "match_events.jsonl"
+        for ev in events:
+            time.sleep(ev["delay"])
+            event = {
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "event": ev["event"],
+                "reason": ev["reason"],
+                "amount_usd": ev["amount_usd"]
+            }
+            with open(event_file, "a", encoding="utf-8") as f:
+                f.write(json.dumps(event) + "\n")
+                
+    threading.Thread(target=run_sequence, daemon=True).start()
+    return _ok({"message": "Rapid-fire sequence started. Terminal should show activity shortly."})
+
+
 @app.route("/demo/balance/<user_id>", methods=["GET"])
 def demo_balance(user_id: str):
     """Check simulated demo balance."""

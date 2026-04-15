@@ -92,6 +92,7 @@ def run_execution(decision: dict, user_id: str = "system") -> dict:
             dest_chain=decision.get("dest_chain"),
             status="failed",
             source=decision.get("metadata", {}).get("source", "agent"),
+            comment=decision.get("comment"),
             preimage_index=idx,
             extra={"error": str(e)},
         )
@@ -104,6 +105,7 @@ def run_execution(decision: dict, user_id: str = "system") -> dict:
     result["amount_usd"] = decision.get("amount_usd", 0)
     result["token_symbol"] = decision.get("metadata", {}).get("token_symbol", "")
     result["user_id"] = user_id
+    result["comment"] = decision.get("comment") # Carry over comment
 
     # ── Step 4: Write TX hash to local log (always, before Supabase) ──────────
     append_tx(
@@ -116,6 +118,7 @@ def run_execution(decision: dict, user_id: str = "system") -> dict:
         dest_chain=decision.get("dest_chain"),
         status=result["status"],
         source=decision.get("metadata", {}).get("source", "agent"),
+        comment=result["comment"],
         preimage_index=idx,
         explorer_url=result.get("explorer_url"),
     )
@@ -175,6 +178,7 @@ def _log_to_ledger(decision: dict, result: dict):
             "amount_usdc_wei": str(decision.get("amount_usdc_wei", 0)),
             "tx_hash": result.get("tx_hash"),
             "status": result.get("status", "unknown"),
+            "comment": decision.get("comment"),
             "preimage_index": result.get("preimage_index"),
             "confirmed_at": datetime.now(timezone.utc).isoformat()
             if result.get("status") == "success"

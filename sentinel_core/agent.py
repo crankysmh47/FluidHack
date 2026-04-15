@@ -73,11 +73,12 @@ class CarbonSentinelAgent:
 
     # ── Public entry points ───────────────────────────────────────────────────
 
-    def run_audit_cycle(self) -> dict | None:
+    def run_audit_cycle(self, comment: str = None) -> dict | None:
         """
         Execute a full autonomous audit cycle.
         Returns the decision dict, or None if blocked by user controls / budget gate.
         """
+        self.comment = comment # Set current reason
         # ── Pre-check: Is the agent even active? ─────────────────────────────
         user_cfg = get_user_config(self.user_id)
         if not user_cfg.get("is_active", True):
@@ -181,7 +182,7 @@ class CarbonSentinelAgent:
 
         # ── Step 4: Produce decision payload ──────────────────────────────────
         print("\n[4/4] Producing decision payload...")
-        decision = self._build_decision(footprint_result, cheapest_credit)
+        decision = self._build_decision(footprint_result, cheapest_credit, comment=self.comment)
 
         print(f"\n{'='*60}")
         print("[Agent] DECISION PAYLOAD:")
@@ -255,7 +256,7 @@ class CarbonSentinelAgent:
 
         return decision
 
-    def force_buy_cycle(self, amount_usd: float, match_id: str = None) -> dict | None:
+    def force_buy_cycle(self, amount_usd: float, match_id: str = None, comment: str = None) -> dict | None:
         """
         Execute a forced carbon credit purchase at a user-specified dollar amount.
         Bypasses the autonomous budget gate but still requires the agent to be active.
@@ -263,6 +264,7 @@ class CarbonSentinelAgent:
         Args:
             amount_usd:  USD to spend on carbon credits
             match_id:    Optional match context string
+            comment:     Reason for the force-buy
 
         Returns:
             Execution result dict, or None on failure.
@@ -287,6 +289,7 @@ class CarbonSentinelAgent:
             "dest_chain": cheapest_credit["dest_chain"],
             "amount_usd": round(amount_usd, 6),
             "amount_usdc_wei": int(amount_usd * 1_000_000),
+            "comment": comment or "Manual Force Buy",
             "metadata": {
                 "attribution_ratio": 0.0,
                 "floodlights_on": False,
@@ -347,7 +350,7 @@ class CarbonSentinelAgent:
 
         return {}
 
-    def _build_decision(self, footprint: dict, credit: dict) -> dict:
+    def _build_decision(self, footprint: dict, credit: dict, comment: str = None) -> dict:
         """Build the final decision payload (contract with Track 4 / executor)."""
         footprint_kg = footprint["calculated_footprint_kg"]
         price_per_tonne = credit.get("price_per_tonne_usd", 1.5)
@@ -370,6 +373,7 @@ class CarbonSentinelAgent:
             "amount_usd": round(amount_usd, 6),
             "amount_usdc_wei": amount_usdc_wei,
             "is_surge_event": is_surge,
+            "comment": comment or ("Grid Surge Mitigation" if is_surge else "Autonomous Audit"),
             "metadata": {
                 "attribution_ratio": breakdown.get("attribution_ratio", 0.0),
                 "floodlights_on": breakdown.get("floodlights_on", False),
@@ -449,6 +453,8 @@ def main():
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--force-buy", type=float, default=None,
                         help="Immediately trigger a forced purchase of N USD")
+    parser.add_argument("--rapid-mode", action="store_true",
+                        help="Enable high-frequency event polling")
     args = parser.parse_args()
 
     match_config = DEFAULT_MATCH.copy()
@@ -464,13 +470,14 @@ def main():
         return
 
     if args.loop:
-        print(f"[Agent] Running in loop mode (interval={args.interval}s, user={args.user_id})")
+        interval = 5 if args.rapid_mode else args.interval
+        print(f"[Agent] Running in loop mode (interval={interval}s, user={args.user_id}, rapid={args.rapid_mode})")
         print("[Agent] Press Ctrl+C to stop.")
         try:
             while True:
-                agent.run_audit_cycle()
-                print(f"\n[Agent] Next cycle in {args.interval}s...")
-                time.sleep(args.interval)
+                agent.run_audit_cycle(comment="Autonomous Rapid Loop" if args.rapid_mode else None)
+                print(f"\n[Agent] Next cycle in {interval}s...")
+                time.sleep(interval)
         except KeyboardInterrupt:
             print("\n[Agent] Stopping loop.")
     else:
