@@ -1,6 +1,8 @@
 import React, { useEffect } from 'react';
 import { useCarbonStore } from '../store/useCarbonStore';
 import { useNavigate } from 'react-router-dom';
+import EcologicalBackground from '../components/EcologicalBackground';
+import CursorStars from '../components/CursorStars';
 
 const History: React.FC = () => {
   const { user, fullHistory, fetchFullHistory, agentHistory, fetchAgentHistory } = useCarbonStore();
@@ -14,7 +16,13 @@ const History: React.FC = () => {
   }, [user, fetchFullHistory, fetchAgentHistory]);
 
   return (
-    <div className="bg-surface text-on-surface min-h-screen pb-24">
+    <div className="bg-surface text-on-surface min-h-screen pb-24 relative">
+      {/* Ecological Background */}
+      <EcologicalBackground />
+      
+      {/* Cursor Stars */}
+      <CursorStars />
+      
       {/* TopAppBar */}
       <header className="sticky top-0 z-40 bg-slate-50/70 dark:bg-slate-900/70 backdrop-blur-xl flex flex-col w-full px-6 pt-6 pb-4 border-b border-outline-variant/10">
         <div className="flex items-center gap-4 mb-2">

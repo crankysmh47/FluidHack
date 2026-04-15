@@ -1,8 +1,16 @@
 import React from 'react';
+import EcologicalBackground from '../components/EcologicalBackground';
+import CursorStars from '../components/CursorStars';
 
 const About: React.FC = () => {
   return (
-    <div className="bg-surface text-on-surface font-body selection:bg-primary-fixed selection:text-on-primary-fixed min-h-screen">
+    <div className="bg-surface text-on-surface font-body selection:bg-primary-fixed selection:text-on-primary-fixed min-h-screen relative">
+      {/* Ecological Background */}
+      <EcologicalBackground />
+      
+      {/* Cursor Stars */}
+      <CursorStars />
+      
       {/* TopAppBar */}
       <header className="fixed top-0 w-full z-50 bg-[#f8f9fa] dark:bg-slate-900">
         <nav className="flex justify-between items-center px-8 py-4 max-w-full mx-auto">

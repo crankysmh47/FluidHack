@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom'
 import { useCarbonStore } from '../store/useCarbonStore'
+import EcologicalBackground from '../components/EcologicalBackground'
+import CursorStars from '../components/CursorStars'
 
 const Landing: React.FC = () => {
   const navigate = useNavigate()
@@ -31,6 +33,12 @@ const Landing: React.FC = () => {
 
   return (
     <div className="bg-background font-body text-on-surface antialiased min-h-screen relative">
+      {/* Ecological Background */}
+      <EcologicalBackground />
+      
+      {/* Cursor Stars */}
+      <CursorStars />
+      
       {/* TopAppBar */}
       <header className="absolute top-0 w-full z-50">
         <nav className="flex justify-between items-center px-6 py-4 max-w-7xl mx-auto w-full">

@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useCarbonStore } from '../store/useCarbonStore';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import EcologicalBackground from '../components/EcologicalBackground';
+import CursorStars from '../components/CursorStars';
 
 const API_BASE = `${window.location.protocol}//${window.location.hostname}:5000`;
 
@@ -31,7 +33,13 @@ const Sandbox: React.FC = () => {
   };
 
   return (
-    <div className="bg-background text-on-background font-body selection:bg-primary-fixed min-h-screen pb-32">
+    <div className="bg-background text-on-background font-body selection:bg-primary-fixed min-h-screen pb-32 relative">
+      {/* Ecological Background */}
+      <EcologicalBackground />
+      
+      {/* Cursor Stars */}
+      <CursorStars />
+      
       {/* Toast Notification */}
       {uiMessage && (
         <div className={`fixed top-20 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded-full text-sm font-bold shadow-xl z-50 transition-all ${uiMessage.type === 'success' ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'}`}>

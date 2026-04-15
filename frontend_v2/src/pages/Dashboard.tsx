@@ -119,7 +119,13 @@ const Dashboard: React.FC = () => {
   const agentResult = lastAgentCycle?.result;
 
   return (
-    <div className="bg-surface text-on-surface min-h-screen pb-24">
+    <div className="bg-surface text-on-surface min-h-screen pb-24 relative">
+      {/* Ecological Background */}
+      <EcologicalBackground />
+      
+      {/* Cursor Stars */}
+      <CursorStars />
+      
       {/* TopAppBar */}
       <header className="sticky top-0 z-40 bg-slate-50/70 dark:bg-slate-900/70 backdrop-blur-xl flex justify-between items-center w-full px-6 pt-4 pb-2">
         {/* Toast Notification */}
