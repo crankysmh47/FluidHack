@@ -28,7 +28,7 @@ const CursorStars = () => {
         delay: Math.random() * 0.3,
       };
 
-      setStars(prev => [...prev.slice(-15), newStar]); // Keep max 15 stars
+      setStars(prev => [...prev.slice(-100), newStar]); // Keep max 100 stars
     };
 
     window.addEventListener('mousemove', handleMouseMove);
@@ -38,8 +38,8 @@ const CursorStars = () => {
   // Remove old stars
   useEffect(() => {
     const interval = setInterval(() => {
-      setStars(prev => prev.slice(-10)); // Remove oldest stars
-    }, 500);
+      setStars(prev => prev.slice(-80)); // Remove oldest stars
+    }, 250);
 
     return () => clearInterval(interval);
   }, []);

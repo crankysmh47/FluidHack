@@ -4,6 +4,8 @@ import { useCarbonStore } from '../store/useCarbonStore'
 import EcologicalBackground from '../components/EcologicalBackground'
 import CursorStars from '../components/CursorStars'
 
+const API_BASE = window.location.port === '5173' || window.location.port === '3000' ? `http://${window.location.hostname}:5000` : '';
+
 const Landing: React.FC = () => {
   const navigate = useNavigate()
   
@@ -137,8 +139,8 @@ const Landing: React.FC = () => {
               </div>
               <h1 className="font-headline font-extrabold text-5xl md:text-7xl text-on-background leading-[1.1] tracking-tight mb-8">
                 Autonomous Carbon <br />
-                <span className="text-primary-container">Offsetting</span> for <br />
-                Live Events.
+                <span className="text-primary-container drop-shadow-[0_0_15px_rgba(16,185,129,0.5)]">Offsetting</span> for <br />
+                <span className="text-emerald-700">Pakistan Super League.</span>
               </h1>
               <p className="text-lg text-on-surface-variant max-w-xl mb-10 leading-relaxed">
                 Precision telemetry meets blockchain accountability. We automate real-time atmospheric recovery for the world's largest gatherings using algorithmic micro-retirements.
@@ -168,9 +170,9 @@ const Landing: React.FC = () => {
                 <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-primary/10 to-transparent blur-3xl"></div>
                 <div className="relative glass-panel biological-shadow p-8 rounded-3xl border border-white/20 transform rotate-3">
                   <img 
-                    className="w-full h-auto rounded-xl grayscale contrast-125" 
-                    alt="Close-up high-tech minimalist data interface" 
-                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuDQYe6EgSbrGM1YZ0-RGZuRafiv1l9NP1dskCUhoLnfP1eKl1GnB6SPW4V-Ttcm9OlMqgiIGGxOWOi0Yd0v13jN2xjO_jMJl5BP-fMqJNsUvZUOwzN9NQL7qfbj77HcVZzC-6Pt399G8fBKtp3eJ2Nl8hDCpR0r-blZsFP-b5qF5OreYksTV5r_XuUeUoYhYU14z5PW6ZGu9EzA-RDKZI9R8NmU9TSpI1dbyPOwvpgNExlkP457rcxJwsNZATDskADvfkqxVGKMkmQ" 
+                    className="w-full h-auto rounded-xl shadow-[0_0_40px_rgba(16,185,129,0.3)] object-cover" 
+                    alt="Close-up high-tech minimalist data interface with glowing green nature elements" 
+                    src={`${API_BASE}/landing_eco_tech.png`} 
                   />
                   <div className="mt-6 flex justify-between items-end">
                     <div>

@@ -83,6 +83,11 @@ def serve_assets(filename):
     """Serve Vite-built static assets (JS, CSS, images)."""
     return send_from_directory(str(_FRONTEND_DIR / "assets"), filename)
 
+@app.route("/landing_eco_tech.png")
+def serve_landing_image():
+    from flask import send_file
+    return send_file(r"C:\Users\arma1\.gemini\antigravity\brain\18562800-1526-4a2e-9c88-9550fd10aa19\landing_eco_tech_1776249452175.png")
+
 
 @app.errorhandler(404)
 def fallback(e):
@@ -189,7 +194,7 @@ def live_feed():
             pools = scraper.filter_refi_pools()
             
             # Extract multiple tokens
-            tokens = ["BCT", "MCO2", "NCT", "UBO"]
+            tokens = ["BCT", "MCO2", "NCT", "UBO", "C3T", "KLIMA", "CRISP", "REGEN"]
             crypto_data = {}
             
             # Fetch real prices first
@@ -204,7 +209,11 @@ def live_feed():
                     "bct": {"price": 18.42, "change": 2.4, "tvl": 500000, "chain": "Polygon"},
                     "mco2": {"price": 12.15, "change": -0.8, "tvl": 120000, "chain": "Polygon"},
                     "nct": {"price": 22.10, "change": 1.2, "tvl": 85000, "chain": "Polygon"},
-                    "ubo": {"price": 4.50, "change": 5.4, "tvl": 32000, "chain": "Polygon"}
+                    "ubo": {"price": 4.50, "change": 5.4, "tvl": 32000, "chain": "Polygon"},
+                    "c3t": {"price": 5.60, "change": 3.1, "tvl": 45000, "chain": "Polygon"},
+                    "klima": {"price": 2.45, "change": 8.5, "tvl": 1500000, "chain": "Polygon"},
+                    "crisp": {"price": 8.90, "change": -1.5, "tvl": 21000, "chain": "Polygon"},
+                    "regen": {"price": 15.20, "change": 0.5, "tvl": 62000, "chain": "Polygon"}
                 }
                 
                 # Use real price if available, otherwise pool price, otherwise fallback
@@ -230,7 +239,11 @@ def live_feed():
                     "bct": {"price": 18.42, "change": 2.4}, 
                     "mco2": {"price": 12.15, "change": -0.8},
                     "nct": {"price": 22.10, "change": 1.2},
-                    "ubo": {"price": 4.50, "change": 5.4}
+                    "ubo": {"price": 4.50, "change": 5.4},
+                    "c3t": {"price": 5.60, "change": 3.1},
+                    "klima": {"price": 2.45, "change": 8.5},
+                    "crisp": {"price": 8.90, "change": -1.5},
+                    "regen": {"price": 15.20, "change": 0.5}
                 }
 
     # 2. Sports Data (Refresh every 3min if live, every 1hour if not)

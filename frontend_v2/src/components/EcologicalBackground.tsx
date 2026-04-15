@@ -2,7 +2,7 @@ import React from 'react';
 
 const EcologicalBackground: React.FC = () => {
   return (
-    <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+    <div className="fixed inset-0 -z-10 pointer-events-none overflow-hidden">
       {/* Pale greenish background gradient */}
       <div 
         className="absolute inset-0"

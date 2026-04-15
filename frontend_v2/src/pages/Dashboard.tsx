@@ -3,6 +3,8 @@ import { useCarbonStore } from '../store/useCarbonStore';
 import { useNavigate } from 'react-router-dom';
 import { useWeb3Modal } from '@web3modal/wagmi/react';
 import { useAccount, useSignMessage } from 'wagmi';
+import EcologicalBackground from '../components/EcologicalBackground';
+import CursorStars from '../components/CursorStars';
 
 const Dashboard: React.FC = () => {
   const { user, remainingBudget, globalTotalOffset, fetchStats, fetchLedger, revokeAgent, forceBuy, logout, uiMessage, isAgentActive, isDemoMode, toggleDemoMode, liveFeed, fetchLiveFeed, isPaymentAuthorized, authorizePayment, isLoading, auditOffsetMinutes, lastAgentCycle, fetchLastAgentCycle, triggerAgentCycle } = useCarbonStore();
@@ -10,6 +12,14 @@ const Dashboard: React.FC = () => {
   const { open } = useWeb3Modal();
   const { isConnected, address } = useAccount();
   const { signMessageAsync } = useSignMessage();
+
+  const effectiveIsConnected = isConnected || isDemoMode;
+
+  const getPslMatchUrl = (home?: string, away?: string) => {
+    const h = (home || 'peshawar-zalmi').toLowerCase().replace(/\s+/g, '-');
+    const a = (away || 'quetta-gladiators').toLowerCase().replace(/\s+/g, '-');
+    return `https://www.espncricinfo.com/series/pakistan-super-league-2026-1515734/${h}-vs-${a}-match/live-cricket-score`;
+  };
 
   const [isBuyModalOpen, setIsBuyModalOpen] = useState(false);
   const [buyAmount, setBuyAmount] = useState('1.00');
@@ -81,9 +91,11 @@ const Dashboard: React.FC = () => {
 
   const handleAuthorize = async () => {
     try {
-      const message = `Authorize Carbon Sentinel Agent\n\nUser: ${user?.id}\nWallet: ${address}\nDesignated AI Budget: $${allowanceAmount}\nTransaction Limit (Preimages): ${txLimitAmount}\n\nI grant the protocol permission to execute signature-less settlements on my behalf within these budget and transaction limits.`;
+      const message = `Authorize Carbon Sentinel Agent\n\nUser: ${user?.id}\nWallet: ${address || 'demo_wallet'}\nDesignated AI Budget: $${allowanceAmount}\nTransaction Limit (Preimages): ${txLimitAmount}\n\nI grant the protocol permission to execute signature-less settlements on my behalf within these budget and transaction limits.`;
       
-      await signMessageAsync({ message });
+      if (!isDemoMode) {
+        await signMessageAsync({ message });
+      }
       await authorizePayment(allowanceAmount, txLimitAmount);
       setIsAuthDismissed(true);
     } catch (err) {
@@ -284,7 +296,7 @@ const Dashboard: React.FC = () => {
                   </div>
                   <div className="mt-auto text-center flex justify-center relative z-20">
                     <a 
-                      href={`https://www.espncricinfo.com/search?q=${encodeURIComponent((liveFeed?.sports?.match?.home_team || 'PSL') + ' vs ' + (liveFeed?.sports?.match?.away_team || ''))}`} 
+                      href={getPslMatchUrl(liveFeed?.sports?.match?.home_team, liveFeed?.sports?.match?.away_team)} 
                       target="_blank" 
                       rel="noreferrer" 
                       className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 px-3 py-1.5 rounded-full transition-colors cursor-pointer pointer-events-auto"
@@ -311,7 +323,7 @@ const Dashboard: React.FC = () => {
                   </div>
                   <div className="mt-auto text-center flex justify-center relative z-20">
                     <a 
-                      href={`https://www.espncricinfo.com/search?q=${encodeURIComponent((liveFeed?.sports?.match?.home_team || 'PSL') + ' vs ' + (liveFeed?.sports?.match?.away_team || ''))}`} 
+                      href={getPslMatchUrl(liveFeed?.sports?.match?.home_team, liveFeed?.sports?.match?.away_team)} 
                       target="_blank" 
                       rel="noreferrer" 
                       className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 px-3 py-1.5 rounded-full transition-colors cursor-pointer pointer-events-auto"
@@ -540,9 +552,9 @@ const Dashboard: React.FC = () => {
       </nav>
 
       {/* Authorization Modal — Triggered by Spin Up Agent button or first visit */}
-      {(!isConnected || !isPaymentAuthorized) && !isAuthDismissed && (
+      {(!effectiveIsConnected || !isPaymentAuthorized) && !isAuthDismissed && (
         <div className="fixed inset-0 z-50 bg-white/70 dark:bg-slate-900/60 backdrop-blur-md flex flex-col items-center justify-center p-6">
-          <div className="max-w-xl w-full bg-emerald-950 rounded-[3rem] p-10 md:p-12 shadow-[0_32px_64px_-12px_rgba(0,0,0,0.5)] border border-emerald-500/30 text-center relative overflow-hidden">
+          <div className="max-w-xl w-full bg-emerald-950 rounded-[3rem] p-10 md:p-12 shadow-[0_32px_64px_-12px_rgba(0,0,0,0.5)] border border-emerald-500/30 text-center relative overflow-y-auto max-h-[90vh]">
             {/* Decorative Glow */}
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-1 bg-emerald-500/50 blur-xl"></div>
             
@@ -551,16 +563,16 @@ const Dashboard: React.FC = () => {
             </span>
             
             <h2 className="text-3xl md:text-4xl font-headline font-extrabold tracking-tight mb-4 text-white">
-              {!isConnected ? 'Link Identity' : 'Authorize Agent'}
+              {!effectiveIsConnected ? 'Link Identity' : 'Authorize Agent'}
             </h2>
             
             <p className="text-base text-emerald-200/70 mb-10 max-w-sm mx-auto leading-relaxed">
-              {!isConnected 
+              {!effectiveIsConnected 
                 ? "Connect your wallet to bridge to the WireFluid testnet for on-chain settlement."
                 : "Grant the Sentinel protocol permission to execute offsets within your limits."}
             </p>
 
-            {!isConnected ? (
+            {!effectiveIsConnected ? (
               <button 
                 onClick={() => open()}
                 className="bg-emerald-500 hover:bg-emerald-400 text-emerald-950 px-10 py-5 rounded-2xl font-headline font-bold text-lg uppercase tracking-widest shadow-xl active:scale-95 transition-all w-full max-w-xs mx-auto flex justify-center items-center gap-3 duration-200"
@@ -578,8 +590,9 @@ const Dashboard: React.FC = () => {
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-400 font-bold text-xl">$</span>
                     <input 
                       type="number" 
+                      min="0"
                       value={allowanceAmount}
-                      onChange={(e) => setAllowanceAmount(Number(e.target.value))}
+                      onChange={(e) => setAllowanceAmount(Math.max(0, Number(e.target.value)))}
                       className="w-full bg-emerald-950/60 border-none rounded-xl py-3 pl-10 pr-4 text-xl font-headline font-bold text-white focus:ring-1 focus:ring-emerald-500 outline-none"
                     />
                   </div>
@@ -593,8 +606,9 @@ const Dashboard: React.FC = () => {
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-400 font-bold text-xl">#</span>
                     <input 
                       type="number" 
+                      min="0"
                       value={txLimitAmount}
-                      onChange={(e) => setTxLimitAmount(Number(e.target.value))}
+                      onChange={(e) => setTxLimitAmount(Math.max(0, Number(e.target.value)))}
                       className="w-full bg-emerald-950/60 border-none rounded-xl py-3 pl-10 pr-4 text-xl font-headline font-bold text-white focus:ring-1 focus:ring-emerald-500 outline-none"
                     />
                   </div>
