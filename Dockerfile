@@ -1,10 +1,10 @@
 # ── Stage 1: Build the React Frontend ────────────────────────────────────────
 FROM node:20-alpine AS frontend-build
 
-WORKDIR /app/frontend
-COPY frontend/package.json frontend/package-lock.json ./
+WORKDIR /app/frontend_v2
+COPY frontend_v2/package.json frontend_v2/package-lock.json ./
 RUN npm ci
-COPY frontend/ ./
+COPY frontend_v2/ ./
 RUN npm run build
 
 # ── Stage 2: Python Backend + Serve Static Files ─────────────────────────────
@@ -25,7 +25,7 @@ COPY carbon_emissions.json ./
 COPY tx_hashes.jsonl ./
 
 # Copy the built React frontend into a folder Flask will serve
-COPY --from=frontend-build /app/frontend/dist ./frontend/dist
+COPY --from=frontend-build /app/frontend_v2/dist ./frontend_v2/dist
 
 # Give ownership of the /app directory to the user so we can write local db/logs
 RUN chown -R user:user /app

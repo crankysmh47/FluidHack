@@ -63,7 +63,6 @@ const Markets: React.FC = () => {
 
   return (
     <div className="bg-surface text-on-surface min-h-screen pb-32 relative">
-<<<<<<< HEAD
       {/* Toast Notification (from Store) */}
       {uiMessage && (
         <div className={`fixed top-24 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded-full text-sm font-bold shadow-xl z-50 transition-all ${uiMessage.type === 'success' ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'}`}>
@@ -71,14 +70,11 @@ const Markets: React.FC = () => {
         </div>
       )}
 
-=======
       {/* Ecological Background */}
       <EcologicalBackground />
       
       {/* Cursor Stars */}
       <CursorStars />
-      
->>>>>>> 26ccda0 (ui changea)
       {/* TopAppBar */}
       <header className="sticky top-0 z-40 bg-slate-50/70 dark:bg-slate-900/70 backdrop-blur-xl flex justify-between items-center w-full px-6 pt-4 pb-2">
         <div className="flex items-center gap-3">

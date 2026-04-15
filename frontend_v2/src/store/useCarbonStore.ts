@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import axios from 'axios';
 
-const API_BASE = `${window.location.protocol}//${window.location.hostname}:5000`;
+const API_BASE = window.location.port === '5173' || window.location.port === '3000' ? `http://${window.location.hostname}:5000` : '';
 
 export interface SystemLog {
   id: string;
