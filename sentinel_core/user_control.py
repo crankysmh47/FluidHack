@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import os
 import sys
+import json
+from pathlib import Path
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -19,6 +21,31 @@ load_dotenv()
 
 # Allow importing from sibling/parent directories
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+# ── Local Config Fallback ───────────────────────────────────────────────────
+LOCAL_CONFIG_DIR = Path(os.path.dirname(os.path.abspath(__file__))).parent / "glue" / "user_configs"
+LOCAL_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+
+def _get_local_config_path(user_id: str) -> Path:
+    return LOCAL_CONFIG_DIR / f"{user_id}_config.json"
+
+def _load_local_config(user_id: str) -> dict | None:
+    path = _get_local_config_path(user_id)
+    if path.exists():
+        try:
+            with open(path, "r") as f:
+                return json.load(f)
+        except:
+            return None
+    return None
+
+def _save_local_config(user_id: str, config: dict):
+    path = _get_local_config_path(user_id)
+    try:
+        with open(path, "w") as f:
+            json.dump(config, f, indent=2)
+    except Exception as e:
+        print(f"[UserControl] [!] Failed to save local config: {e}")
 
 
 # ── Supabase helper ───────────────────────────────────────────────────────────
@@ -33,7 +60,7 @@ def _get_supabase():
         from supabase import create_client
         return create_client(url, key)
     except Exception as e:
-        print(f"[UserControl] ⚠️  Supabase init failed: {e}")
+        print(f"[UserControl] [!] Supabase init failed: {e}")
         return None
 
 
@@ -43,6 +70,8 @@ DEFAULT_CONFIG = {
     "budget_usd": 50.0,
     "max_tx_usd": 5.0,
     "spent_usd": 0.0,
+    "authorized_tx_count": 50,
+    "tx_count": 0,
     "is_active": True,
     "auto_execute": True,
     "spectatorless_mode": False,
@@ -54,9 +83,15 @@ DEFAULT_CONFIG = {
 
 def get_user_config(user_id: str) -> dict:
     """
-    Fetch a user's agent configuration from Supabase.
-    Returns DEFAULT_CONFIG if Supabase is not available or user doesn't exist yet.
+    Fetch a user's agent configuration from Supabase or local fallback.
+    Returns DEFAULT_CONFIG if no configuration is found.
     """
+    # 1. Try local cache first for speed and offline support
+    local = _load_local_config(user_id)
+    if local:
+        return local
+
+    # 2. Try Supabase
     sb = _get_supabase()
     if not sb:
         return {**DEFAULT_CONFIG, "user_id": user_id}
@@ -65,58 +100,60 @@ def get_user_config(user_id: str) -> dict:
         resp = sb.table("agent_config").select("*").eq("user_id", user_id).execute()
         rows = resp.data
         if rows:
+            # Sync to local
+            _save_local_config(user_id, rows[0])
             return rows[0]
         # Auto-provision defaults for new user
         return create_user_config(user_id)
     except Exception as e:
-        print(f"[UserControl] ⚠️  get_user_config failed: {e}")
+        print(f"[UserControl] [!] get_user_config failed: {e}")
         return {**DEFAULT_CONFIG, "user_id": user_id}
 
 
 def create_user_config(user_id: str, **overrides) -> dict:
     """
-    Create a new user config row in Supabase with sane defaults.
-    Idempotent — safe to call multiple times.
+    Create a new user config row in Supabase and local cache.
     """
     config = {**DEFAULT_CONFIG, "user_id": user_id, **overrides}
+    _save_local_config(user_id, config)
+    
     sb = _get_supabase()
     if not sb:
         return config
     try:
         sb.table("agent_config").upsert(config, on_conflict="user_id").execute()
-        print(f"[UserControl] ✅ Config provisioned for {user_id}")
+        print(f"[UserControl] [V] Config provisioned for {user_id}")
     except Exception as e:
-        print(f"[UserControl] ⚠️  create_user_config failed: {e}")
+        print(f"[UserControl] [!] create_user_config failed: {e}")
     return config
 
 
 def update_user_config(user_id: str, **fields) -> dict:
     """
-    Update specific fields of a user's agent config.
-    Valid fields: budget_usd, max_tx_usd, is_active, auto_execute,
-                  spectatorless_mode, display_name
-
-    Examples:
-        update_user_config("0xABC", budget_usd=100.0, max_tx_usd=10.0)
-        update_user_config("0xABC", is_active=False)   # soft revoke
+    Update specific fields of a user's agent config in local cache and Supabase.
     """
     # Always update the timestamp
     fields["updated_at"] = datetime.now(timezone.utc).isoformat()
 
+    # Update local first
+    current = get_user_config(user_id)
+    updated = {**current, **fields}
+    _save_local_config(user_id, updated)
+
     sb = _get_supabase()
     if not sb:
-        print("[UserControl] Supabase not configured — config update skipped.")
-        return get_user_config(user_id)
+        print("[UserControl] Supabase not configured — config updated locally.")
+        return updated
 
     try:
         sb.table("agent_config").upsert(
             {"user_id": user_id, **fields}, on_conflict="user_id"
         ).execute()
-        print(f"[UserControl] ✅ Config updated for {user_id}: {list(fields.keys())}")
+        print(f"[UserControl] [V] Config updated for {user_id}: {list(fields.keys())}")
     except Exception as e:
-        print(f"[UserControl] ⚠️  update_user_config failed: {e}")
+        print(f"[UserControl] [!] update_user_config Supabase sync failed: {e}")
 
-    return get_user_config(user_id)
+    return updated
 
 
 def revoke_agent(user_id: str) -> dict:
@@ -125,19 +162,19 @@ def revoke_agent(user_id: str) -> dict:
     Sets is_active=False and auto_execute=False.
     The agent checks this flag before every cycle and will stop.
     """
-    print(f"[UserControl] 🛑 Revoking agent for user: {user_id}")
+    print(f"[UserControl] [X] Revoking agent for user: {user_id}")
     return update_user_config(user_id, is_active=False, auto_execute=False)
 
 
 def restore_agent(user_id: str) -> dict:
     """Re-enable the agent after a revoke."""
-    print(f"[UserControl] ✅ Restoring agent for user: {user_id}")
+    print(f"[UserControl] [V] Restoring agent for user: {user_id}")
     return update_user_config(user_id, is_active=True, auto_execute=True)
 
 
 def record_spend(user_id: str, amount_usd: float) -> dict:
     """
-    Increment the cumulative spend counter for a user.
+    Increment the cumulative spend counter AND tx count for a user.
     Called automatically after each successful transaction.
     """
     sb = _get_supabase()
@@ -147,17 +184,23 @@ def record_spend(user_id: str, amount_usd: float) -> dict:
         # Use RPC or do read-modify-write
         config = get_user_config(user_id)
         new_spent = round(config.get("spent_usd", 0.0) + amount_usd, 6)
-        return update_user_config(user_id, spent_usd=new_spent)
+        new_tx_count = int(config.get("tx_count", 0) + 1)
+        return update_user_config(user_id, spent_usd=new_spent, tx_count=new_tx_count)
     except Exception as e:
-        print(f"[UserControl] ⚠️  record_spend failed: {e}")
+        print(f"[UserControl] [!] record_spend failed: {e}")
         return get_user_config(user_id)
 
 
 # ── Budget gate ───────────────────────────────────────────────────────────────
 
-def check_budget_gate(user_id: str, proposed_spend_usd: float) -> tuple[bool, str]:
+def check_budget_gate(user_id: str, proposed_spend_usd: float, bypass_limits: bool = False) -> tuple[bool, str]:
     """
     Check whether a proposed spend is within the user's configured limits.
+
+    Args:
+        user_id: The ID of the user.
+        proposed_spend_usd: Amount to check.
+        bypass_limits: If True, skip budget/tx_count checks (used for manual UI overrides).
 
     Returns:
         (allowed: bool, reason: str)
@@ -174,6 +217,9 @@ def check_budget_gate(user_id: str, proposed_spend_usd: float) -> tuple[bool, st
     if proposed_spend_usd > max_tx:
         return False, f"Proposed spend ${proposed_spend_usd:.4f} exceeds per-tx limit ${max_tx:.2f}."
 
+    if bypass_limits:
+        return True, "OK (Bypass Active)"
+
     budget = config.get("budget_usd", 50.0)
     spent = config.get("spent_usd", 0.0)
     if spent + proposed_spend_usd > budget:
@@ -182,6 +228,12 @@ def check_budget_gate(user_id: str, proposed_spend_usd: float) -> tuple[bool, st
             f"Budget exhausted. Budget=${budget:.2f}, Spent=${spent:.4f}, "
             f"Remaining=${remaining:.4f}. Proposed=${proposed_spend_usd:.4f}."
         )
+
+    # Check Tx Count (Preimage) Limit
+    auth_txs = int(config.get("authorized_tx_count", 50))
+    used_txs = int(config.get("tx_count", 0))
+    if used_txs >= auth_txs:
+        return False, f"Transaction count limit reached ({used_txs}/{auth_txs}). Re-authorize required."
 
     return True, "OK"
 
@@ -210,9 +262,9 @@ def request_force_buy(user_id: str, amount_usd: float, match_id: str = None) -> 
         try:
             resp = sb.table("force_buys").insert(row).execute()
             row = resp.data[0] if resp.data else row
-            print(f"[UserControl] ✅ Force-buy requested: ${amount_usd:.2f} for {user_id}")
+            print(f"[UserControl] [V] Force-buy requested: ${amount_usd:.2f} for {user_id}")
         except Exception as e:
-            print(f"[UserControl] ⚠️  request_force_buy DB write failed: {e}")
+            print(f"[UserControl] [!] request_force_buy DB write failed: {e}")
     else:
         print(f"[UserControl] Force-buy queued locally (no Supabase): ${amount_usd:.2f}")
 
@@ -231,7 +283,7 @@ def get_pending_force_buys(user_id: str = None) -> list[dict]:
         resp = q.order("created_at", desc=False).execute()
         return resp.data or []
     except Exception as e:
-        print(f"[UserControl] ⚠️  get_pending_force_buys failed: {e}")
+        print(f"[UserControl] [!] get_pending_force_buys failed: {e}")
         return []
 
 
@@ -247,7 +299,7 @@ def mark_force_buy_executed(force_buy_id: int, tx_hash: str):
             "executed_at": datetime.now(timezone.utc).isoformat(),
         }).eq("id", force_buy_id).execute()
     except Exception as e:
-        print(f"[UserControl] ⚠️  mark_force_buy_executed failed: {e}")
+        print(f"[UserControl] [!] mark_force_buy_executed failed: {e}")
 
 
 def mark_force_buy_failed(force_buy_id: int, error: str):
@@ -261,7 +313,7 @@ def mark_force_buy_failed(force_buy_id: int, error: str):
             "error_message": str(error),
         }).eq("id", force_buy_id).execute()
     except Exception as e:
-        print(f"[UserControl] ⚠️  mark_force_buy_failed: {e}")
+        print(f"[UserControl] [!] mark_force_buy_failed: {e}")
 
 
 # ── Offset Stats ──────────────────────────────────────────────────────────────
@@ -296,8 +348,26 @@ def get_total_offset_stats(user_id: str = None) -> dict:
             "last_purchase_at": None,
         }
     except Exception as e:
-        print(f"[UserControl] ⚠️  get_total_offset_stats failed: {e}")
+        print(f"[UserControl] [!] get_total_offset_stats failed: {e}")
         return {}
+
+
+def get_user_ledger(user_id: str, limit: int = 50) -> list[dict]:
+    """Fetch full transaction history for a specific user from Supabase tx_log."""
+    sb = _get_supabase()
+    if not sb:
+        return []
+    try:
+        resp = sb.table("tx_log") \
+                 .select("*") \
+                 .eq("user_id", user_id) \
+                 .order("logged_at", desc=True) \
+                 .limit(limit) \
+                 .execute()
+        return resp.data or []
+    except Exception as e:
+        print(f"[UserControl] [!] get_user_ledger failed: {e}")
+        return []
 
 
 # ── CLI test ──────────────────────────────────────────────────────────────────

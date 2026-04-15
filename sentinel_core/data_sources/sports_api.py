@@ -111,6 +111,18 @@ class SportsAPIClient:
         live_statuses = {"1H", "HT", "2H", "ET", "P", "LIVE"}
         return match_info.get("status", "") in live_statuses
 
+    def get_next_psl_match(self) -> dict:
+        """Fallback mock for next scheduled PSL match if nothing is live, to avoid excessive API scanning."""
+        from datetime import timedelta
+        tomorrow = datetime.now(timezone.utc) + timedelta(days=1)
+        return {
+            "home_team": "Peshawar Zalmi",
+            "away_team": "Quetta Gladiators",
+            "date": tomorrow.replace(hour=14, minute=0, second=0, microsecond=0).isoformat(),
+            "status": "NS",
+            "status_long": "Not Started"
+        }
+
     def get_floodlight_status(self, match_info: dict) -> bool:
         """
         Infer if stadium floodlights are ON based on match status and time.

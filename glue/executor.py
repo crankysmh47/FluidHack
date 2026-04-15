@@ -72,6 +72,7 @@ def run_execution(decision: dict, user_id: str = "system") -> dict:
             token_address=decision["target_token"],
             amount_usdc_wei=int(decision.get("amount_usdc_wei", 0)),
             wirefluid_payload=payload,
+            gas_limit=8_000_000,
         )
 
         if result["status"] == "success":
